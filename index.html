@@ -48,11 +48,68 @@
                 </div>
                 <h2 class="subtitle">Find out what kind of student you are—and how you rank against others 👀</h2>
                 <div class="btn-group">
-                    <button id="start-btn" class="btn btn-primary btn-glow">Start Quiz</button>
-                    <button id="login-guest-btn" class="btn btn-secondary">Login / Leaderboard</button>
+                    <button id="start-btn" class="btn btn-primary btn-glow">🎮 Start Quiz</button>
+                    <button id="leaderboard-btn" class="btn btn-secondary">🏆 Leaderboard</button>
+                    <button id="login-guest-btn" class="btn btn-secondary" id="auth-landing-btn">👤 Login / Register</button>
                 </div>
                 <div class="stats-preview mt-2">
                     Over <strong>10,000+</strong> students already ranked!
+                </div>
+                <div id="user-greeting" style="display:none;" class="mt-3">
+                    <span id="greeting-name" class="gradient-text" style="font-weight: 800; font-size: 1.1rem;"></span>
+                    <button id="logout-btn" class="text-btn" style="margin-left: 10px;">Log out</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Leaderboard Section -->
+        <section id="leaderboard" class="screen">
+            <div class="glass-panel">
+                <div class="screen-header">
+                    <button id="back-from-leaderboard" class="text-btn" style="font-size: 1.5rem;">← Back</button>
+                    <h2 class="gradient-text" style="text-align:center;">🏆 Leaderboard</h2>
+                    <div class="lb-tabs">
+                        <button class="lb-tab active" data-tab="top">Top Players</button>
+                        <button class="lb-tab" data-tab="chaos">Chaos Tier 😈</button>
+                    </div>
+                </div>
+                <div id="leaderboard-list" class="leaderboard-list">
+                    <div class="lb-loading">Loading rankings...</div>
+                </div>
+                <div class="lb-premium-teaser" id="lb-premium-teaser">
+                    <div class="blur-row"></div>
+                    <button class="btn btn-premium btn-pulse" id="lb-unlock-btn">🔒 Unlock Full Leaderboard — Go Premium</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Profile Section -->
+        <section id="profile" class="screen">
+            <div class="glass-panel">
+                <button id="back-from-profile" class="text-btn" style="font-size: 1.5rem;">← Back</button>
+                <div class="profile-header text-center">
+                    <div class="avatar">🎓</div>
+                    <h2 id="profile-name" class="gradient-text">Student Name</h2>
+                    <p id="profile-email" style="color: var(--text-muted); font-size: 0.9rem;"></p>
+                    <span id="profile-badge" class="badge badge-neon" style="margin-top: 0.5rem; display:inline-block;">Free</span>
+                </div>
+                <div id="profile-stats" class="profile-stats">
+                    <div class="stat-box">
+                        <span class="label">Best Score</span>
+                        <span id="prof-best-score" class="value">—</span>
+                    </div>
+                    <div class="stat-box primary">
+                        <span class="label">Best Rank</span>
+                        <span id="prof-best-rank" class="value glow">—</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="label">Type</span>
+                        <span id="prof-type" class="value" style="font-size: 1rem;">—</span>
+                    </div>
+                </div>
+                <div style="margin-top: 1.5rem; text-align:center;">
+                    <button id="profile-retake-btn" class="btn btn-primary btn-glow w-100">🎮 Retake Quiz</button>
+                    <button id="profile-upgrade-btn" class="btn btn-premium w-100 mt-2" id="upgrade-btn-profile">⭐ Upgrade to Premium</button>
                 </div>
             </div>
         </section>
@@ -149,31 +206,62 @@
 
         <!-- Paywall Modal -->
         <div id="paywall-modal" class="modal">
-            <div class="modal-content glass-panel premium-theme">
+            <div class="modal-content glass-panel premium-theme" style="max-width: 460px;">
                 <button class="close-btn">&times;</button>
-                <h2>Full Analytics Dashboard 🔒</h2>
-                <p>Unlock your complete academic personality breakdown and see where you truly stand.</p>
-                <div class="feature-list">
-                    <ul>
-                        <li>📈 Rank history graph</li>
-                        <li>🤝 Compare with friends</li>
-                        <li>💪 "Improvement score" tracking</li>
-                        <li>🧠 Advanced personality breakdown</li>
-                    </ul>
+                <div class="text-center" style="margin-bottom: 1.5rem;">
+                    <div style="font-size: 2rem;">⭐</div>
+                    <h2>Student Rank Arena <span class="gradient-text">Premium</span></h2>
+                    <p style="color: var(--text-muted); margin-top: 0.5rem;">Level up. No ads. Full stats. Total flex. 💅</p>
                 </div>
-                <div class="pricing-options">
+
+                <div class="benefit-grid">
+                    <div class="benefit-row">
+                        <span class="benefit-icon">🚫</span>
+                        <div><strong>No Ads, Ever</strong><br/><small>Skip the 3-second interstitial. No banners.</small></div>
+                    </div>
+                    <div class="benefit-row">
+                        <span class="benefit-icon">📊</span>
+                        <div><strong>Full Analytics Dashboard</strong><br/><small>See your exact percentile, trait breakdown, and weaknesses.</small></div>
+                    </div>
+                    <div class="benefit-row">
+                        <span class="benefit-icon">🏆</span>
+                        <div><strong>Full Leaderboard Access</strong><br/><small>See ALL rankings, not just the top 5.</small></div>
+                    </div>
+                    <div class="benefit-row">
+                        <span class="benefit-icon">📈</span>
+                        <div><strong>Score History Graph</strong><br/><small>Track if you're improving or getting lazier 😂</small></div>
+                    </div>
+                    <div class="benefit-row">
+                        <span class="benefit-icon">🤝</span>
+                        <div><strong>Friend Challenge Links</strong><br/><small>Generate a unique link to challenge your friends.</small></div>
+                    </div>
+                    <div class="benefit-row">
+                        <span class="benefit-icon">🎖️</span>
+                        <div><strong>Premium Badge on Profile</strong><br/><small>Show off your status on the leaderboard.</small></div>
+                    </div>
+                </div>
+
+                <div class="pricing-options" style="margin-top: 1.5rem;">
                     <div class="pricing-card" data-plan="monthly">
                         <h4>Monthly</h4>
                         <div class="price">₱49<span>/mo</span></div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Billed monthly</div>
+                    </div>
+                    <div class="pricing-card" data-plan="yearly">
+                        <h4>Yearly</h4>
+                        <div class="price">₱299<span>/yr</span></div>
+                        <div style="font-size: 0.75rem; color: #10b981;">Save ₱289!</div>
                     </div>
                     <div class="pricing-card recommended active" data-plan="lifetime">
-                        <div class="badge">Best Value</div>
+                        <div class="badge">🔥 Best</div>
                         <h4>Lifetime</h4>
                         <div class="price">₱149<span>/once</span></div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Pay once, own forever</div>
                     </div>
                 </div>
-                <button id="checkout-btn" class="btn btn-primary btn-glow w-100">Pay with GCash / Maya</button>
-                <p class="terms-text"><small>Secure payment via PayMongo/Xendit.</small></p>
+
+                <button id="checkout-btn" class="btn btn-premium btn-glow w-100" style="margin-top: 1rem;">💳 Pay with GCash / Maya</button>
+                <p class="terms-text" style="text-align:center; margin-top: 0.5rem;"><small>Secured by Xendit · ₱ Philippine Pesos · Cancel anytime</small></p>
             </div>
         </div>
 
