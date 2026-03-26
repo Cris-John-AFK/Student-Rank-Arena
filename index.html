@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Rank Arena - Discover Your True Student Type</title>
+    <meta name="description"
+        content="Find out what kind of student you are, and see how you rank against others in the Student Rank Arena!" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+    <div class="layout-wrapper">
+        <div class="ad-space ad-top"><span>Advertisement</span></div>
+        <div class="content-wrapper">
+            <div class="ad-space ad-left"><span>Advertisement</span></div>
+
+            <div id="app">
+        <!-- Landing Section -->
+        <section id="landing" class="screen active">
+            <div class="glass-panel text-center">
+                <div class="logo-area">
+                    <h1>STUDENT RANK <span class="gradient-text">ARENA</span></h1>
+                </div>
+                <h2 class="subtitle">Find out what kind of student you are—and how you rank against others 👀</h2>
+                <div class="btn-group">
+                    <button id="start-btn" class="btn btn-primary btn-glow">Start Quiz</button>
+                    <button id="login-guest-btn" class="btn btn-secondary">Login / Leaderboard</button>
+                </div>
+                <div class="stats-preview mt-2">
+                    Over <strong>10,000+</strong> students already ranked!
+                </div>
+            </div>
+        </section>
+
+        <!-- Quiz Section -->
+        <section id="quiz" class="screen">
+            <div class="quiz-container glass-panel">
+                <div class="progress-container">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
+                <div class="question-header">
+                    <span id="question-count">Question 1/25</span>
+                    <span id="category-label" class="badge badge-neon">Time Habits</span>
+                </div>
+                <div class="quiz-content">
+                    <h3 id="question-text">When do you start assignments?</h3>
+                    <div id="options-container" class="options">
+                        <!-- Options injected here -->
+                    </div>
+                    <div class="quiz-navigation" style="margin-top: 1.5rem; text-align: left;">
+                        <button id="prev-btn" class="text-btn" style="display: none;">← Previous Question</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ad Interstitial Screen -->
+        <section id="ad-screen" class="screen">
+            <div class="glass-panel text-center">
+                <h2>A Quick Message!</h2>
+                <div class="ad-placeholder-large mt-3">
+                    <span style="font-size: 0.8rem; letter-spacing: 2px;">ADVERTISEMENT</span>
+                    <div class="ad-content" style="font-size: 1.5rem; margin-top: 10px;">Buy 1 Take 1 Coffee! ☕</div>
+                    <div style="font-size: 0.9rem; margin-top: 5px;">Swipe to claim on app</div>
+                </div>
+                <div class="mt-3">
+                    <button id="skip-ad-btn" class="btn btn-secondary w-100 disabled" disabled>Skip Ad in <span id="ad-timer">3</span>...</button>
+                </div>
+                <button id="remove-ads-btn" class="text-btn mt-3 gradient-text" style="font-weight: 800;">Get Premium & Remove Ads</button>
+            </div>
+        </section>
+
+        <!-- Loading State -->
+        <section id="calculating" class="screen">
+            <div class="glass-panel text-center calculating-box">
+                <div class="spinner"></div>
+                <h2>Calculating your type...</h2>
+                <p>Analyzing psychological and academic traits.</p>
+            </div>
+        </section>
+
+        <!-- Result Section -->
+        <section id="result" class="screen">
+            <div class="glass-panel confeti-canvas">
+                <div class="result-header">
+                    <h4>Your True Student Type</h4>
+                    <h1 id="result-type" class="gradient-text type-title">The Overachiever 🧠</h1>
+                </div>
+
+                <div class="result-stats">
+                    <div class="stat-box">
+                        <span class="label">Score</span>
+                        <span id="result-score" class="value">78/100</span>
+                    </div>
+                    <div class="stat-box primary">
+                        <span class="label">Rank</span>
+                        <span id="result-rank" class="value glow">Top 23%</span>
+                    </div>
+                </div>
+
+                <div class="locked-preview">
+                    <div class="glass-banner">
+                        <div class="preview-text">
+                            <p>👀 You are better than <strong id="better-than">72%</strong> of students.</p>
+                            <p>Your strongest trait: <strong>Under Pressure ⚡</strong></p>
+                        </div>
+                        <div class="blur-overlay">
+                            <button id="unlock-stats-btn" class="btn btn-premium btn-pulse">Unlock Full Stats
+                                🔒</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group action-group">
+                    <button id="share-btn" class="btn btn-secondary w-100">Share Result 🔗</button>
+                    <button id="save-result-btn" class="btn btn-primary w-100 mt-2">Save Rank & Compete 🏆</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Paywall Modal -->
+        <div id="paywall-modal" class="modal">
+            <div class="modal-content glass-panel premium-theme">
+                <button class="close-btn">&times;</button>
+                <h2>Full Analytics Dashboard 🔒</h2>
+                <p>Unlock your complete academic personality breakdown and see where you truly stand.</p>
+                <div class="feature-list">
+                    <ul>
+                        <li>📈 Rank history graph</li>
+                        <li>🤝 Compare with friends</li>
+                        <li>💪 "Improvement score" tracking</li>
+                        <li>🧠 Advanced personality breakdown</li>
+                    </ul>
+                </div>
+                <div class="pricing-options">
+                    <div class="pricing-card" data-plan="monthly">
+                        <h4>Monthly</h4>
+                        <div class="price">₱49<span>/mo</span></div>
+                    </div>
+                    <div class="pricing-card recommended active" data-plan="lifetime">
+                        <div class="badge">Best Value</div>
+                        <h4>Lifetime</h4>
+                        <div class="price">₱149<span>/once</span></div>
+                    </div>
+                </div>
+                <button id="checkout-btn" class="btn btn-primary btn-glow w-100">Pay with GCash / Maya</button>
+                <p class="terms-text"><small>Secure payment via PayMongo/Xendit.</small></p>
+            </div>
+        </div>
+
+        <!-- Auth Modal -->
+        <div id="auth-modal" class="modal">
+            <div class="modal-content glass-panel">
+                <button class="close-auth-btn close-btn">&times;</button>
+                <h2 id="auth-title">Save Your Rank</h2>
+                <p id="auth-subtitle">Create an account to track your improvement and appear on the leaderboard!</p>
+
+                <form id="auth-form" class="auth-form">
+                    <div class="input-group">
+                        <input type="text" id="name-input" placeholder="Display Name (e.g. Academic Weapon)" />
+                    </div>
+                    <div class="input-group">
+                        <input type="email" id="email-input" placeholder="Email Address" required />
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="password-input" placeholder="Password" required minlength="6" />
+                    </div>
+                    <button type="submit" id="auth-submit-btn" class="btn btn-primary w-100 mt-3">Sign Up</button>
+                </form>
+
+                <div class="auth-toggle">
+                    <button id="toggle-auth-mode" class="text-btn mt-3">Already have an account? Log In</button>
+                </div>
+            </div>
+        </div>
+
+            </div>
+            <!-- End App -->
+            <div class="ad-space ad-right" style="display: none;"></div>
+        </div>
+        <div class="ad-space ad-footer mt-2"><span>Advertisement</span></div>
+    </div>
+    
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+    <script type="module" src="/main.js"></script>
+</body>
+
+</html>
