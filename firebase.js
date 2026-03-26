@@ -161,6 +161,20 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     }
 }
 
+export async function getUserProfileData(email) {
+    if (!email || !isFirebaseConfigured) return null;
+    try {
+        const { getDoc, doc } = await import("firebase/firestore");
+        const userDoc = await getDoc(doc(db, 'users', email));
+        if (userDoc.exists()) {
+            return userDoc.data();
+        }
+    } catch (e) {
+        console.error("Profile fetch failed:", e);
+    }
+    return null;
+}
+
 // ================================================
 // Fetch Results for a Specific User
 // ================================================

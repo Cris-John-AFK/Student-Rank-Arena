@@ -1,5 +1,5 @@
 import { questions } from './questions.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData } from './firebase.js';
 
 // ====== DOM Screens ======
 const screens = {
@@ -57,15 +57,14 @@ function init() {
 
     // ✅ Persist login: fires when Firebase restores session on page load
     onUserStateChange(async (user) => {
+        currentUser = user; // 🔑 Always update global state!
         if (user) {
-            currentUser = user;
             premiumData = await checkPremiumStatus(user.email);
             isPremiumUser = !!premiumData;
             if (isPremiumUser) {
                 document.querySelectorAll('.ad-space').forEach(el => el.classList.add('premium-hidden'));
             }
         } else {
-            currentUser = null;
             isPremiumUser = false;
             premiumData = null;
         }
@@ -271,9 +270,17 @@ async function openProfile() {
         document.getElementById('prof-best-rank').textContent = `Top ${best.rank}%`;
         document.getElementById('prof-type').textContent = best.type;
     } else {
-        document.getElementById('prof-best-score').textContent = 'No quiz yet';
-        document.getElementById('prof-best-rank').textContent = '—';
-        document.getElementById('prof-type').textContent = '—';
+        // 🔑 Second chance: check their direct user document
+        const userData = await getUserProfileData(currentUser.email);
+        if (userData && (userData.lastScore !== undefined)) {
+            document.getElementById('prof-best-score').textContent = `${userData.lastScore}/100`;
+            document.getElementById('prof-best-rank').textContent = `Top ${userData.lastRank}%`;
+            document.getElementById('prof-type').textContent = userData.lastType || '—';
+        } else {
+            document.getElementById('prof-best-score').textContent = 'No quiz yet';
+            document.getElementById('prof-best-rank').textContent = '—';
+            document.getElementById('prof-type').textContent = '—';
+        }
     }
 
     // Refresh Premium Plan Display
@@ -468,6 +475,8 @@ function calculateResult() {
 // ====== Save + Share ======
 async function handleSaveResult() {
     let guestNick = null;
+    let emailKey = currentUser?.email || null;
+
     if (!currentUser) {
         guestNick = prompt("Enter a nickname to show on the leaderboard (leave blank for Guest):");
         if (guestNick === null) return; // User cancelled prompt
@@ -475,6 +484,7 @@ async function handleSaveResult() {
     }
 
     const btn = document.getElementById('save-result-btn');
+    const originalText = btn.textContent;
     btn.textContent = 'Saving...';
     btn.disabled = true;
 
@@ -482,11 +492,13 @@ async function handleSaveResult() {
     
     if (res.success) {
         showToast(`Rank saved as ${res.displayName}! 🏆`);
-        btn.textContent = 'Saved ✓';
+        btn.textContent = 'Go Home 🏠';
+        btn.disabled = false;
+        btn.onclick = () => { location.reload(); }; // Simplest way to go back home cleanly
     } else {
         showToast('Error saving rank.');
         btn.disabled = false;
-        btn.textContent = 'Save Result';
+        btn.textContent = originalText;
     }
 }
 
