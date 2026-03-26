@@ -215,16 +215,19 @@ export async function getUserProfileData(email) {
 export async function fetchUserResults(email) {
     if (!email || !isFirebaseConfigured) return [];
     try {
-        const { query, collection, where, orderBy, getDocs } = await import("firebase/firestore");
+        const { query, collection, where, getDocs } = await import("firebase/firestore");
         const resultsRef = collection(db, 'results');
-        const q = query(resultsRef, where('userId', '==', email), orderBy('date', 'desc'));
+        // 🔑 We remove orderBy from the query to avoid needing a Composite Index in Firebase Console
+        const q = query(resultsRef, where('userId', '==', email));
         const querySnapshot = await getDocs(q);
         
         const myData = [];
         querySnapshot.forEach((doc) => {
             myData.push({ id: doc.id, ...doc.data() });
         });
-        return myData;
+
+        // 🏆 Sort in JS instead to stay index-free
+        return myData.sort((a, b) => new Date(b.date) - new Date(a.date));
     } catch (e) {
         console.error("User results fetch failed:", e);
         return [];
