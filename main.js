@@ -373,26 +373,41 @@ function skipAd() {
 }
 
 function calculateResult() {
-    let type = '', rarity = '';
+    let type = '', rarity = '', description = '', focus = 0, social = 0, clutch = 0, strongTrait = '';
+    let proTip = '';
+
     if (totalScore <= 40) {
         type = 'The Overachiever 🧠';
         finalRank = Math.floor(Math.random() * 5) + 1;
-        rarity = 'Top 1% Academic Weapon 🔥';
+        rarity = 'Academic Weapon 🔥';
+        description = "You're a rare breed of student who balances discipline with raw ambition. You don't just pass; you dominate. Your focus is legendary.";
+        focus = 95; social = 50; clutch = 40; strongTrait = 'Dicipline 🛡️';
+        proTip = "Take breaks! Even weapons need maintenance to avoid burnout.";
     } else if (totalScore <= 60) {
         type = 'The Consistent Grinder 📚';
-        finalRank = Math.floor(Math.random() * 15) + 5;
+        finalRank = Math.floor(Math.random() * 10) + 5;
+        description = "Solid, reliable, and hardworking. You might not be a 'genius' in your own eyes, but your consistency puts you ahead of 80% of students.";
+        focus = 80; social = 60; clutch = 30; strongTrait = 'Consistency 📈';
+        proTip = "Try teaching others what you learn; it will solidify your top-tier rank.";
     } else if (totalScore <= 75) {
         type = 'The Chill Passer 😌';
-        finalRank = Math.floor(Math.random() * 20) + 20;
-        if (Math.random() > 0.8) rarity = 'Silent Genius 🤫';
+        finalRank = Math.floor(Math.random() * 15) + 20;
+        description = "You have the talent but prefer the easy life. You do 'just enough' to stay safe. You're the master of the minimum effort, maximum result.";
+        focus = 50; social = 85; clutch = 60; strongTrait = 'Efficiency ⚡';
+        proTip = "Imagine what you could do if you gave just 10% more effort.";
     } else if (totalScore <= 90) {
         type = 'The Crammer 💀';
-        finalRank = Math.floor(Math.random() * 30) + 40;
-        if (Math.random() > 0.8) rarity = 'Deadline Bender ⏳';
+        finalRank = Math.floor(Math.random() * 25) + 40;
+        description = "Living on the edge! You ignore everything for 3 weeks and then finish the whole semester in one night of pure adrenaline.";
+        focus = 20; social = 40; clutch = 100; strongTrait = 'Clutch Chaos 🎢';
+        proTip = "Your heart won't last forever at this rate; start 2 days earlier next time.";
     } else {
-        type = 'Ghost Student 👻 (Chaos Tier)';
-        finalRank = Math.floor(Math.random() * 20) + 70;
+        type = 'Ghost Student 👻';
+        finalRank = Math.floor(Math.random() * 20) + 75;
         rarity = 'Academic Menace 😈';
+        description = "A true chaos tier student. You probably aren't even sure what course you're taking, yet somehow you're still here. Respect.";
+        focus = 10; social = 95; clutch = 80; strongTrait = 'Pure Luck 🍀';
+        proTip = "Check your email. Seriously. There are probably 50 missed deadlines.";
     }
 
     finalType = rarity || type;
@@ -400,6 +415,31 @@ function calculateResult() {
     document.getElementById('result-score').textContent = `${totalScore}/100`;
     document.getElementById('result-rank').textContent = `Top ${finalRank}%`;
     document.getElementById('better-than').textContent = `${100 - finalRank}%`;
+
+    // Detailed Analytics (Premium Only)
+    document.getElementById('strong-trait-preview').textContent = strongTrait;
+    document.getElementById('detailed-analysis-text').textContent = description;
+    document.getElementById('pro-tip-text').textContent = proTip;
+    
+    // Bars
+    document.getElementById('trait-focus-val').textContent = focus + '%';
+    document.getElementById('trait-focus-bar').style.width = focus + '%';
+    document.getElementById('trait-social-val').textContent = social + '%';
+    document.getElementById('trait-social-bar').style.width = social + '%';
+    document.getElementById('trait-clutch-val').textContent = clutch + '%';
+    document.getElementById('trait-clutch-bar').style.width = clutch + '%';
+
+    // Toggle Premium View
+    const lockedDiv = document.getElementById('result-locked-preview');
+    const premiumDiv = document.getElementById('result-premium-stats');
+    
+    if (isPremiumUser) {
+        lockedDiv.style.display = 'none';
+        premiumDiv.style.display = 'block';
+    } else {
+        lockedDiv.style.display = 'block';
+        premiumDiv.style.display = 'none';
+    }
 }
 
 // ====== Save + Share ======

@@ -256,4 +256,14 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
     0% { transform: translateX(-150%) rotate(45deg); }
     100% { transform: translateX(150%) rotate(45deg); }
 }
-
+.premium-analytics { margin-top: 1.5rem; text-align: left; animation: fadeIn 0.5s ease; }
+.analytics-card { padding: 1.2rem !important; border: 1px solid rgba(139, 92, 246, 0.4); }
+.analysis-text { font-size: 0.95rem; line-height: 1.5; color: var(--text-muted); margin-top: 0.5rem; }
+.trait-bars { margin-top: 1.2rem; display: flex; flex-direction: column; gap: 0.8rem; }
+.trait-row { position: relative; }
+.trait-info { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; font-weight: 600; }
+.trait-bar-bg { height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 99px; overflow: hidden; }
+.trait-bar-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #ec4899); border-radius: 99px; transition: width 1s ease; }
+.pro-tip { margin-top: 1.2rem; background: rgba(139, 92, 246, 0.1); padding: 0.8rem; border-radius: 8px; border-left: 3px solid #8b5cf6; }
+.pro-tip strong { display: block; font-size: 0.85rem; margin-bottom: 3px; color: #a78bfa; }
+.pro-tip p { font-size: 0.85rem; margin: 0; line-height: 1.4; }

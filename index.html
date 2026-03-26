@@ -221,15 +221,44 @@
                     </div>
                 </div>
 
-                <div class="locked-preview">
+                <div id="result-locked-preview" class="locked-preview">
                     <div class="glass-banner">
                         <div class="preview-text">
                             <p>👀 You are better than <strong id="better-than">72%</strong> of students.</p>
-                            <p>Your strongest trait: <strong>Under Pressure ⚡</strong></p>
+                            <p>Your strongest trait: <strong id="strong-trait-preview">Under Pressure ⚡</strong></p>
                         </div>
                         <div class="blur-overlay">
-                            <button id="unlock-stats-btn" class="btn btn-premium btn-pulse">Unlock Full Stats
-                                🔒</button>
+                            <button id="unlock-stats-btn" class="btn btn-premium btn-pulse">Unlock Full Stats 🔒</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Premium Detailed Analytics (Unlocked) -->
+                <div id="result-premium-stats" class="premium-analytics" style="display:none;">
+                    <div class="analytics-card glass-panel">
+                        <h3 class="gradient-text">Detailed Profile Analysis</h3>
+                        <p id="detailed-analysis-text" class="analysis-text">
+                            You're the type of student who excels when the stakes are high. Your results show a high tolerance for stress but a slight struggle with consistent routine.
+                        </p>
+                        
+                        <div class="trait-bars">
+                            <div class="trait-row">
+                                <div class="trait-info"><span>Focus & Discipline</span> <span id="trait-focus-val">85%</span></div>
+                                <div class="trait-bar-bg"><div id="trait-focus-bar" class="trait-bar-fill" style="width: 85%;"></div></div>
+                            </div>
+                            <div class="trait-row">
+                                <div class="trait-info"><span>Social/Group Study</span> <span id="trait-social-val">40%</span></div>
+                                <div class="trait-bar-bg"><div id="trait-social-bar" class="trait-bar-fill" style="width: 40%;"></div></div>
+                            </div>
+                            <div class="trait-row">
+                                <div class="trait-info"><span>Last Minute Clutch</span> <span id="trait-clutch-val">95%</span></div>
+                                <div class="trait-bar-bg"><div id="trait-clutch-bar" class="trait-bar-fill" style="width: 95%;"></div></div>
+                            </div>
+                        </div>
+
+                        <div class="pro-tip">
+                            <strong>💡 Pro Recommendation:</strong>
+                            <p id="pro-tip-text">Try Pomodoro technique to maintain focus during long study blocks.</p>
                         </div>
                     </div>
                 </div>
