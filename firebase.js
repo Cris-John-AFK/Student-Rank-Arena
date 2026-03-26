@@ -82,18 +82,35 @@ export function getCurrentUser() {
 
 // ================================================
 // Check Premium Status from Firestore
+// Returns: null (not premium) or { isPremium, plan, paidAt, expiresAt }
 // ================================================
 export async function checkPremiumStatus(email) {
-    if (!email) return false;
+    if (!email) return null;
     if (isFirebaseConfigured) {
         try {
             const userDoc = await getDoc(doc(db, 'users', email));
-            if (userDoc.exists()) return userDoc.data().isPremium === true;
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                if (!data.isPremium) return null;
+                const paidAt = data.paidAt || null;
+                const plan = data.plan || 'lifetime';
+                let expiresAt = null;
+                if (plan === 'monthly' && paidAt) {
+                    const paid = new Date(paidAt);
+                    paid.setDate(paid.getDate() + 30);
+                    expiresAt = paid.toISOString();
+                    // if expired, no longer premium
+                    if (new Date() > paid) return null;
+                }
+                return { isPremium: true, plan, paidAt, expiresAt };
+            }
         } catch (e) { console.warn('Premium check failed:', e); }
-        return false;
+        return null;
     }
+    // Mock fallback
     const user = JSON.parse(localStorage.getItem('mockUser') || 'null');
-    return user?.isPremium === true;
+    if (user?.isPremium) return { isPremium: true, plan: user.plan || 'lifetime', paidAt: null, expiresAt: null };
+    return null;
 }
 
 // ================================================

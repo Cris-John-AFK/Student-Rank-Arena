@@ -1,5 +1,5 @@
 import { questions } from './questions.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser } from './firebase.js';
 
 // ====== DOM Screens ======
 const screens = {
@@ -25,6 +25,7 @@ let isSignUpMode = true;
 let finalType = '';
 let finalRank = 0;
 let isPremiumUser = false;
+let premiumData = null; 
 let currentUser = null;
 let lbCurrentTab = 'top';
 
@@ -58,14 +59,15 @@ function init() {
     onUserStateChange(async (user) => {
         if (user) {
             currentUser = user;
-            const email = user.email || user.email;
-            isPremiumUser = await checkPremiumStatus(email);
+            premiumData = await checkPremiumStatus(user.email);
+            isPremiumUser = !!premiumData;
             if (isPremiumUser) {
                 document.querySelectorAll('.ad-space').forEach(el => el.classList.add('premium-hidden'));
             }
         } else {
             currentUser = null;
             isPremiumUser = false;
+            premiumData = null;
         }
         updateLandingUI();
     });
@@ -167,6 +169,7 @@ function handleLogout() {
     localStorage.removeItem('studentResults');
     currentUser = null;
     isPremiumUser = false;
+    premiumData = null;
     updateLandingUI();
     showToast('Logged out successfully.');
 }
@@ -235,10 +238,31 @@ function openProfile() {
         document.getElementById('prof-best-score').textContent = `${best.score}/100`;
         document.getElementById('prof-best-rank').textContent = `Top ${best.rank}%`;
         document.getElementById('prof-type').textContent = best.type;
+    }
+
+    // Refresh Premium Plan Display
+    const planInfo = document.getElementById('premium-plan-info');
+    if (isPremiumUser && premiumData) {
+        planInfo.style.display = 'block';
+        document.getElementById('plan-name').textContent = premiumData.plan === 'lifetime' ? 'Lifetime 🔥' : 'Monthly 🗓️';
+        
+        const daysInfo = document.getElementById('plan-days-info');
+        if (premiumData.plan === 'monthly' && premiumData.expiresAt) {
+            daysInfo.style.display = 'block';
+            const now = new Date();
+            const expiry = new Date(premiumData.expiresAt);
+            const diffTime = Math.max(0, expiry - now);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            document.getElementById('plan-days-left').textContent = `${diffDays} days`;
+            const percentage = Math.min(100, Math.max(0, (diffDays / 30) * 100));
+            document.getElementById('plan-days-bar').style.width = `${percentage}%`;
+            document.getElementById('plan-expires-on').textContent = `Renews on: ${expiry.toLocaleDateString()}`;
+        } else {
+            daysInfo.style.display = 'none';
+        }
     } else {
-        document.getElementById('prof-best-score').textContent = 'No quiz yet';
-        document.getElementById('prof-best-rank').textContent = '—';
-        document.getElementById('prof-type').textContent = '—';
+        planInfo.style.display = 'none';
     }
 }
 
@@ -428,7 +452,9 @@ async function handleAuthSubmit(e) {
         currentUser = getCurrentUser();
         // 🔑 Check if user is Premium in Firestore
         const userEmail = currentUser?.email || email;
-        isPremiumUser = await checkPremiumStatus(userEmail);
+        premiumData = await checkPremiumStatus(userEmail);
+        isPremiumUser = !!premiumData;
+        
         if (isPremiumUser) {
             document.querySelectorAll('.ad-space').forEach(el => el.classList.add('premium-hidden'));
             showToast('⭐ Welcome back, Premium member!');

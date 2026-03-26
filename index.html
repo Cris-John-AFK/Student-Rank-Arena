@@ -4,13 +4,24 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Student Rank Arena - Discover Your True Student Type</title>
-    <meta name="description"
-        content="Find out what kind of student you are, and see how you rank against others in the Student Rank Arena!" />
+    <title>Student Rank Arena | What Kind of Student Are You? 🎓</title>
+    <meta name="description" content="Take the ultimate 25-question student personality quiz. Are you an Academic Weapon or a Chaos Tier Menace? Join 10k+ students and see your true rank! 🔥">
+    <meta name="keywords" content="student rank, academic weapon, student personality quiz, ranking students, education leaderboard">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css" />
+
+    <!-- Social Media Sharing (OpenGraph) -->
+    <meta property="og:title" content="What kind of student are you? 🎓 | Student Rank Arena">
+    <meta property="og:description" content="I just discovered my academic personality and rank! See if you can beat my score on the arena! 🔥">
+    <meta property="og:url" content="https://student-rank-arena.vercel.app/">
+    <meta property="og:type" content="website">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Student Rank Arena - Compare Your Rank 🏆">
+    <meta name="twitter:description" content="Compare your study habits and personality with thousands of students. Join the Arena today!">
     
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6927411315527774"
@@ -93,6 +104,31 @@
                     <p id="profile-email" style="color: var(--text-muted); font-size: 0.9rem;"></p>
                     <span id="profile-badge" class="badge badge-neon" style="margin-top: 0.5rem; display:inline-block;">Free</span>
                 </div>
+
+                <!-- Premium Plan Info (only shown to premium users) -->
+                <div id="premium-plan-info" style="display:none; margin: 1rem 0; background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(244,63,94,0.1)); border: 1px solid rgba(99,102,241,0.4); border-radius: 12px; padding: 1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-size:0.75rem; color:var(--text-muted); letter-spacing:1px;">CURRENT PLAN</div>
+                            <div id="plan-name" style="font-weight:800; font-size:1.1rem; margin-top:2px;">Lifetime ⭐</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.75rem; color:var(--text-muted); letter-spacing:1px;">STATUS</div>
+                            <div id="plan-status" style="font-weight:700; color:#10b981;">Active ✅</div>
+                        </div>
+                    </div>
+                    <div id="plan-days-info" style="display:none; margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid rgba(255,255,255,0.1);">
+                        <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+                            <span style="color:var(--text-muted);">Days Remaining</span>
+                            <span id="plan-days-left" style="font-weight:800; color:#f59e0b;">— days</span>
+                        </div>
+                        <div style="margin-top:0.5rem; background:rgba(255,255,255,0.1); border-radius:99px; height:6px; overflow:hidden;">
+                            <div id="plan-days-bar" style="height:100%; background:linear-gradient(90deg,#6366f1,#f43f5e); border-radius:99px; width:100%; transition:width 0.5s ease;"></div>
+                        </div>
+                        <div id="plan-expires-on" style="font-size:0.75rem; color:var(--text-muted); margin-top:0.3rem; text-align:right;"></div>
+                    </div>
+                </div>
+
                 <div id="profile-stats" class="profile-stats">
                     <div class="stat-box">
                         <span class="label">Best Score</span>
@@ -109,7 +145,7 @@
                 </div>
                 <div style="margin-top: 1.5rem; text-align:center;">
                     <button id="profile-retake-btn" class="btn btn-primary btn-glow w-100">🎮 Retake Quiz</button>
-                    <button id="profile-upgrade-btn" class="btn btn-premium w-100 mt-2" id="upgrade-btn-profile">⭐ Upgrade to Premium</button>
+                    <button id="profile-upgrade-btn" class="btn btn-premium w-100 mt-2">⭐ Upgrade to Premium</button>
                 </div>
             </div>
         </section>
@@ -245,12 +281,7 @@
                     <div class="pricing-card" data-plan="monthly">
                         <h4>Monthly</h4>
                         <div class="price">₱49<span>/mo</span></div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">Billed monthly</div>
-                    </div>
-                    <div class="pricing-card" data-plan="yearly">
-                        <h4>Yearly</h4>
-                        <div class="price">₱299<span>/yr</span></div>
-                        <div style="font-size: 0.75rem; color: #10b981;">Save ₱289!</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Renews every 30 days</div>
                     </div>
                     <div class="pricing-card recommended active" data-plan="lifetime">
                         <div class="badge">🔥 Best</div>
