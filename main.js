@@ -1,5 +1,5 @@
 import { questions } from './questions.js';
-import { getCurrentUser, authenticateUser, saveUserResult } from './firebase.js';
+import { getCurrentUser, authenticateUser, saveUserResult, checkPremiumStatus } from './firebase.js';
 
 // ====== DOM Screens ======
 const screens = {
@@ -401,6 +401,14 @@ async function handleAuthSubmit(e) {
 
     if (res.success) {
         currentUser = getCurrentUser();
+        // 🔑 Check if user is Premium in Firestore
+        const userEmail = currentUser?.email || email;
+        isPremiumUser = await checkPremiumStatus(userEmail);
+        if (isPremiumUser) {
+            document.querySelectorAll('.ad-space').forEach(el => el.classList.add('premium-hidden'));
+            showToast('⭐ Welcome back, Premium member!');
+        }
+
         closeAllModals();
         updateLandingUI();
         showToast(isSignUpMode ? '🎉 Account created! Welcome!' : '👋 Welcome back!');

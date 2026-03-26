@@ -1,8 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+import { getFirestore, collection, addDoc, doc, getDoc, setDoc } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 
-// ⚠️ UPDATE THIS WITH YOUR ACTUAL FIREBASE CONFIG OR VERCEL ENV VARIABLES
+// ⚠️ Reads from Vercel Environment Variables (set these in your Vercel dashboard)
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN",
@@ -12,7 +12,6 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_APP_ID"
 };
 
-// Check if configured to prevent breaking before user sets it up
 export const isFirebaseConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
 
 export let app, db, auth;
@@ -23,43 +22,90 @@ if (isFirebaseConfigured) {
     auth = getAuth(app);
 }
 
-// ==========================================
-// Mocks for local testing without Firebase
-// ==========================================
+// ================================================
+// AUTH: Register or Login
+// ================================================
 export async function authenticateUser(email, password, isSignUp, displayName) {
     if (isFirebaseConfigured) {
         try {
+            let userCredential;
             if (isSignUp) {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                // In a real app we'd update profile with displayName
-                return { success: true, user: userCredential.user };
+                userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                if (displayName) {
+                    await updateProfile(userCredential.user, { displayName });
+                }
+                // Create user doc in Firestore
+                await setDoc(doc(db, 'users', email), {
+                    displayName: displayName || email.split('@')[0],
+                    email,
+                    isPremium: false,
+                    createdAt: new Date().toISOString()
+                }, { merge: true });
             } else {
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                return { success: true, user: userCredential.user };
+                userCredential = await signInWithEmailAndPassword(auth, email, password);
             }
+            return { success: true, user: userCredential.user };
         } catch (error) {
             return { success: false, error: error.message };
         }
     } else {
-        // Mock success
-        localStorage.setItem("mockUser", JSON.stringify({ email, displayName: displayName || email.split('@')[0] }));
-        return { success: true, user: { email } };
+        // localhost mock
+        const key = `mockUser_${email}`;
+        if (isSignUp) {
+            const userData = { email, displayName: displayName || email.split('@')[0], isPremium: false };
+            localStorage.setItem('mockUser', JSON.stringify(userData));
+        } else {
+            const existing = localStorage.getItem('mockUser');
+            if (!existing) return { success: false, error: 'No account found. Please sign up.' };
+            localStorage.setItem('mockUser', existing);
+        }
+        return { success: true, user: JSON.parse(localStorage.getItem('mockUser')) };
     }
 }
 
+// ================================================
+// Get current logged-in user
+// ================================================
 export function getCurrentUser() {
     if (isFirebaseConfigured) {
         return auth.currentUser;
     } else {
-        return JSON.parse(localStorage.getItem("mockUser"));
+        return JSON.parse(localStorage.getItem('mockUser'));
     }
 }
 
+// ================================================
+// Check Premium Status from Firestore
+// ================================================
+export async function checkPremiumStatus(email) {
+    if (!email) return false;
+
+    if (isFirebaseConfigured) {
+        try {
+            const userDoc = await getDoc(doc(db, 'users', email));
+            if (userDoc.exists()) {
+                return userDoc.data().isPremium === true;
+            }
+        } catch (e) {
+            console.warn('Could not check premium status:', e);
+        }
+        return false;
+    } else {
+        // mock: check if the mock user has isPremium
+        const user = JSON.parse(localStorage.getItem('mockUser'));
+        return user?.isPremium === true;
+    }
+}
+
+// ================================================
+// Save Quiz Result to Firestore
+// ================================================
 export async function saveUserResult(score, studentType, rankPercentile) {
     const user = getCurrentUser();
+    const email = user?.email || 'guest';
     const resultData = {
-        userId: user ? user.uid || user.email : "guest",
-        displayName: user ? user.displayName : "Guest",
+        userId: email,
+        displayName: user?.displayName || email.split('@')[0],
         score,
         type: studentType,
         rank: rankPercentile,
@@ -68,10 +114,17 @@ export async function saveUserResult(score, studentType, rankPercentile) {
 
     if (isFirebaseConfigured) {
         try {
-            await addDoc(collection(db, "results"), resultData);
+            await addDoc(collection(db, 'results'), resultData);
+            // Also update best score on user doc
+            await setDoc(doc(db, 'users', email), {
+                lastScore: score,
+                lastRank: rankPercentile,
+                lastType: studentType,
+                lastPlayed: new Date().toISOString()
+            }, { merge: true });
             return true;
         } catch (e) {
-            console.error("Error adding document: ", e);
+            console.error("Error saving result:", e);
             return false;
         }
     } else {
