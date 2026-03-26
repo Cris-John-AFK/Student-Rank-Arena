@@ -162,6 +162,28 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
 }
 
 // ================================================
+// Fetch Results for a Specific User
+// ================================================
+export async function fetchUserResults(email) {
+    if (!email || !isFirebaseConfigured) return [];
+    try {
+        const { query, collection, where, orderBy, getDocs } = await import("firebase/firestore");
+        const resultsRef = collection(db, 'results');
+        const q = query(resultsRef, where('userId', '==', email), orderBy('date', 'desc'));
+        const querySnapshot = await getDocs(q);
+        
+        const myData = [];
+        querySnapshot.forEach((doc) => {
+            myData.push({ id: doc.id, ...doc.data() });
+        });
+        return myData;
+    } catch (e) {
+        console.error("User results fetch failed:", e);
+        return [];
+    }
+}
+
+// ================================================
 // Fetch Leaderboard (Real Firestore Data)
 // ================================================
 export async function fetchLeaderboard(limitCount = 20) {

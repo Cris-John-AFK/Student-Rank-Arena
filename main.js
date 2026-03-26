@@ -1,5 +1,5 @@
 import { questions } from './questions.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults } from './firebase.js';
 
 // ====== DOM Screens ======
 const screens = {
@@ -227,13 +227,18 @@ async function renderLeaderboard(tab) {
 }
 
 // ====== Profile ======
-function openProfile() {
+async function openProfile() {
     if (!currentUser) { showModal('auth'); return; }
     showScreen('profile');
 
     const name = currentUser.displayName || currentUser.email?.split('@')[0] || 'Student';
     document.getElementById('profile-name').textContent = name;
     document.getElementById('profile-email').textContent = currentUser.email || '';
+
+    // Clear stats while loading
+    document.getElementById('prof-best-score').textContent = '...';
+    document.getElementById('prof-best-rank').textContent = '...';
+    document.getElementById('prof-type').textContent = '...';
 
     const badge = document.getElementById('profile-badge');
     if (isPremiumUser) {
@@ -244,17 +249,31 @@ function openProfile() {
         document.getElementById('profile-upgrade-btn').style.display = 'none';
     } else {
         badge.textContent = 'Free';
+        badge.style.background = '';
+        badge.style.color = '';
+        badge.style.border = '1px solid var(--border)';
         document.getElementById('profile-upgrade-btn').style.display = '';
     }
 
-    // Load last result from localStorage
-    const results = JSON.parse(localStorage.getItem('studentResults') || '[]');
-    const myResults = results.filter(r => r.userId === (currentUser.email || currentUser.uid));
+    // Load real results from Firestore
+    let myResults = [];
+    if (isFirebaseConfigured) {
+        myResults = await fetchUserResults(currentUser.email);
+    } else {
+        const results = JSON.parse(localStorage.getItem('studentResults') || '[]');
+        myResults = results.filter(r => r.userId === (currentUser.email || currentUser.uid));
+    }
+
     if (myResults.length > 0) {
+        // Find best score (lowest score is best in our ranking)
         const best = myResults.reduce((a, b) => a.score < b.score ? a : b);
         document.getElementById('prof-best-score').textContent = `${best.score}/100`;
         document.getElementById('prof-best-rank').textContent = `Top ${best.rank}%`;
         document.getElementById('prof-type').textContent = best.type;
+    } else {
+        document.getElementById('prof-best-score').textContent = 'No quiz yet';
+        document.getElementById('prof-best-rank').textContent = '—';
+        document.getElementById('prof-type').textContent = '—';
     }
 
     // Refresh Premium Plan Display
@@ -379,32 +398,35 @@ function calculateResult() {
     if (totalScore <= 40) {
         type = 'The Overachiever 🧠';
         finalRank = Math.floor(Math.random() * 5) + 1;
-        rarity = 'Academic Weapon 🔥';
+        rarity = finalRank === 1 ? 'Diamond Tier 💎 (One of a Kind)' : 'Legendary 🌟';
         description = "You're a rare breed of student who balances discipline with raw ambition. You don't just pass; you dominate. Your focus is legendary.";
         focus = 95; social = 50; clutch = 40; strongTrait = 'Dicipline 🛡️';
         proTip = "Take breaks! Even weapons need maintenance to avoid burnout.";
     } else if (totalScore <= 60) {
         type = 'The Consistent Grinder 📚';
         finalRank = Math.floor(Math.random() * 10) + 5;
+        rarity = 'Top-Tier 🥇';
         description = "Solid, reliable, and hardworking. You might not be a 'genius' in your own eyes, but your consistency puts you ahead of 80% of students.";
         focus = 80; social = 60; clutch = 30; strongTrait = 'Consistency 📈';
         proTip = "Try teaching others what you learn; it will solidify your top-tier rank.";
     } else if (totalScore <= 75) {
         type = 'The Chill Passer 😌';
         finalRank = Math.floor(Math.random() * 15) + 20;
+        rarity = 'Uncommon ✨';
         description = "You have the talent but prefer the easy life. You do 'just enough' to stay safe. You're the master of the minimum effort, maximum result.";
         focus = 50; social = 85; clutch = 60; strongTrait = 'Efficiency ⚡';
         proTip = "Imagine what you could do if you gave just 10% more effort.";
     } else if (totalScore <= 90) {
         type = 'The Crammer 💀';
         finalRank = Math.floor(Math.random() * 25) + 40;
+        rarity = 'Common 📉';
         description = "Living on the edge! You ignore everything for 3 weeks and then finish the whole semester in one night of pure adrenaline.";
         focus = 20; social = 40; clutch = 100; strongTrait = 'Clutch Chaos 🎢';
         proTip = "Your heart won't last forever at this rate; start 2 days earlier next time.";
     } else {
         type = 'Ghost Student 👻';
         finalRank = Math.floor(Math.random() * 20) + 75;
-        rarity = 'Academic Menace 😈';
+        rarity = 'Low Stakes 🍃';
         description = "A true chaos tier student. You probably aren't even sure what course you're taking, yet somehow you're still here. Respect.";
         focus = 10; social = 95; clutch = 80; strongTrait = 'Pure Luck 🍀';
         proTip = "Check your email. Seriously. There are probably 50 missed deadlines.";
