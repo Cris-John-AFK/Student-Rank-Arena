@@ -421,13 +421,13 @@ async function handleAuthSubmit(e) {
 // ====== Premium / Checkout ======
 function handleCheckout() {
     const activePlan = document.querySelector('.pricing-card.active')?.dataset.plan || 'lifetime';
-    const xenditLink = import.meta.env.VITE_XENDIT_LINK || '';
+    const paymongoLink = import.meta.env.VITE_PAYMONGO_LINK || '';
 
-    showToast('Initializing Xendit Secure Checkout...');
+    showToast('Redirecting to PayMongo secure checkout... 💳');
 
     setTimeout(() => {
-        if (xenditLink) {
-            window.location.href = xenditLink;
+        if (paymongoLink) {
+            window.location.href = paymongoLink;
         } else {
             closeAllModals();
             showToast('🔓 [DEV MODE] Premium Unlocked!');
@@ -436,7 +436,7 @@ function handleCheckout() {
             updateLandingUI();
             if (screens['ad-screen']?.classList.contains('active')) skipAd();
         }
-    }, 1500);
+    }, 1200);
 }
 
 // ====== Boot ======
