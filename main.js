@@ -202,6 +202,16 @@ async function renderLeaderboard(tab) {
         data = data.filter(d => d.score >= 70).sort((a, b) => b.score - a.score);
     }
 
+    // 🏆 Leaderboard Deduplication: 
+    // If a user has multiple records (historical), only keep their BEST one.
+    const seen = new Set();
+    data = data.filter(d => {
+        if (!d.userId || d.userId.startsWith('guest_')) return true; // Guests can stay multiple
+        if (seen.has(d.userId)) return false;
+        seen.add(d.userId);
+        return true;
+    });
+
     if (data.length === 0) {
         list.innerHTML = `<div class="lb-loading">No one in the ${tab === 'chaos' ? 'Chaos' : 'Top'} tier yet. 🎯</div>`;
         return;

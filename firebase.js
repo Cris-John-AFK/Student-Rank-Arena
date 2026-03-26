@@ -143,17 +143,44 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
 
     if (isFirebaseConfigured) {
         try {
-            // Save to global results
-            await addDoc(collection(db, 'results'), resultData);
+            // 🏆 Leaderboard Cleanliness: One entry per user
+            // We use the userId (email for logged-in users) as the document ID
+            const leaderboardRef = doc(db, 'results', userId);
             
-            // If logged in, also update user document
+            // Fetch existing best score
+            const existing = await getDoc(leaderboardRef);
+            let shouldUpdate = true;
+            
+            if (existing.exists()) {
+                const oldData = existing.data();
+                // Only update if the new score is BETTER (higher is better in our new system)
+                if (score <= oldData.score) {
+                    shouldUpdate = false;
+                }
+            }
+            
+            if (shouldUpdate) {
+                await setDoc(leaderboardRef, resultData, { merge: true });
+            }
+
+            // If logged in, ALSO update their permanent user profile document
             if (email) {
-                await setDoc(doc(db, 'users', email), {
+                const userDocRef = doc(db, 'users', email);
+                const userSnapshot = await getDoc(userDocRef);
+                let updateUserData = {
                     lastScore: score,
                     lastRank: rankPercentile,
                     lastType: studentType,
                     lastPlayed: new Date().toISOString()
-                }, { merge: true });
+                };
+                
+                // Also track "best" in the user profile separately
+                if (!userSnapshot.exists() || (score > (userSnapshot.data().bestScore || 0))) {
+                    updateUserData.bestScore = score;
+                    updateUserData.bestType = studentType;
+                }
+
+                await setDoc(userDocRef, updateUserData, { merge: true });
             }
             return { success: true, displayName };
         } catch (e) {
