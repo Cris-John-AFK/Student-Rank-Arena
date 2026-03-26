@@ -182,16 +182,17 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
 
                 await setDoc(userDocRef, updateUserData, { merge: true });
             }
-            return { success: true, displayName };
+            return { success: true, displayName, userId };
         } catch (e) {
             console.error('Save failed:', e);
-            return { success: false };
+            return { success: false, error: e.message };
         }
     } else {
+        // Fallback for no firebase
         const results = JSON.parse(localStorage.getItem('studentResults') || '[]');
         results.push(resultData);
         localStorage.setItem('studentResults', JSON.stringify(results));
-        return { success: true, displayName };
+        return { success: true, displayName, userId };
     }
 }
 

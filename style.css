@@ -245,6 +245,12 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
     overflow: hidden;
 }
 
+.lb-row.highlight-me {
+    border: 1px solid var(--primary);
+    background: linear-gradient(90deg, rgba(139, 92, 246, 0.2), transparent);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+}
+
 .lb-row.premium-row::after {
     content: '';
     position: absolute;

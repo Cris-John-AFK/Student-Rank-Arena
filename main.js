@@ -218,26 +218,40 @@ async function renderLeaderboard(tab) {
     }
 
     list.innerHTML = '';
-    const visibleCount = isPremiumUser ? data.length : 5;
+    const visibleCount = 20;
+    const topData = data.slice(0, visibleCount);
+    
+    const myId = currentUser?.email || localStorage.getItem('myArenaId');
+    const myIndex = data.findIndex(d => d.userId === myId);
 
-    data.slice(0, visibleCount).forEach((entry, i) => {
-        const row = document.createElement('div');
-        row.className = 'lb-row' + (entry.isPremium ? ' premium-row' : '');
-        const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
-        
-        row.innerHTML = `
-            <div class="lb-rank ${rankClass}">${medal}</div>
-            <div class="lb-info">
-                <div class="lb-name">${entry.displayName} ${entry.isPremium ? '⭐' : ''}</div>
-                <div class="lb-type">${entry.type}</div>
+    const createRowHTML = (entry, index, isMe) => {
+        const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+        let nameDisplay = entry.displayName;
+        if (isMe) nameDisplay += " (You)";
+
+        return `
+            <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''}">
+                <div class="lb-rank ${rankClass}">${medal}</div>
+                <div class="lb-info">
+                    <div class="lb-name">${nameDisplay} ${entry.isPremium ? '⭐' : ''}</div>
+                    <div class="lb-type">${entry.type}</div>
+                </div>
+                <div class="lb-score">${entry.score}/100</div>
             </div>
-            <div class="lb-score">${entry.score}/100</div>
         `;
-        list.appendChild(row);
-    });
+    };
 
-    teaser.style.display = (isPremiumUser || data.length <= 5) ? 'none' : 'block';
+    let html = topData.map((entry, i) => createRowHTML(entry, i, entry.userId === myId)).join('');
+
+    // If the user's rank is outside the top 20, show ... and then their rank
+    if (myIndex >= visibleCount) {
+        html += `<div style="text-align:center; color:var(--text-muted); padding: 10px;">•••</div>`;
+        html += createRowHTML(data[myIndex], myIndex, true);
+    }
+
+    list.innerHTML = html;
+    teaser.style.display = 'none'; // Replaced premium teaser with 20-limit for all
 }
 
 // ====== Profile ======
@@ -513,6 +527,9 @@ async function handleSaveResult() {
     const res = await saveUserResult(totalScore, finalType, finalRank, guestNick);
     
     if (res.success) {
+        if (res.userId) {
+            localStorage.setItem('myArenaId', res.userId);
+        }
         showToast(`Rank saved as ${res.displayName}! 🏆`);
         btn.textContent = 'Go Home 🏠';
         btn.disabled = false;
