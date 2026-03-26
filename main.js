@@ -1,5 +1,5 @@
 import { questions } from './questions.js';
-import { getCurrentUser, authenticateUser, saveUserResult, checkPremiumStatus } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured } from './firebase.js';
 
 // ====== DOM Screens ======
 const screens = {
@@ -52,9 +52,34 @@ const mockLeaderboard = {
 
 // ====== Init ======
 function init() {
-    currentUser = getCurrentUser();
-    updateLandingUI();
     setupEventListeners();
+
+    // ✅ Persist login: fires when Firebase restores session on page load
+    onUserStateChange(async (user) => {
+        if (user) {
+            currentUser = user;
+            const email = user.email || user.email;
+            isPremiumUser = await checkPremiumStatus(email);
+            if (isPremiumUser) {
+                document.querySelectorAll('.ad-space').forEach(el => el.classList.add('premium-hidden'));
+            }
+        } else {
+            currentUser = null;
+            isPremiumUser = false;
+        }
+        updateLandingUI();
+    });
+
+    // DEV/TEST: Press Ctrl+Shift+P to toggle premium without paying
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+            isPremiumUser = !isPremiumUser;
+            document.querySelectorAll('.ad-space').forEach(el =>
+                el.classList.toggle('premium-hidden', isPremiumUser)
+            );
+            showToast(isPremiumUser ? '⭐ [DEV] Premium ON' : '📢 [DEV] Premium OFF');
+        }
+    });
 }
 
 function setupEventListeners() {
