@@ -1,5 +1,5 @@
 import { questions } from './questions.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard } from './firebase.js';
 
 // ====== DOM Screens ======
 const screens = {
@@ -180,33 +180,50 @@ function openLeaderboard() {
     renderLeaderboard('top');
 }
 
-function renderLeaderboard(tab) {
+async function renderLeaderboard(tab) {
     const list = document.getElementById('leaderboard-list');
     const teaser = document.getElementById('lb-premium-teaser');
-    const data = mockLeaderboard[tab];
     
-    list.innerHTML = '';
+    list.innerHTML = '<div class="lb-loading">Fetching real rankings...</div>';
 
+    // Fetch up to 20 real results
+    let data = await fetchLeaderboard(30);
+    
+    if (!data || data.length === 0) {
+        list.innerHTML = '<div class="lb-loading">No results yet. Be the first! 🏆</div>';
+        return;
+    }
+
+    // Filter by tab
+    if (tab === 'chaos') {
+        // Chaos tier are the high score students (Crammers/Menaces)
+        data = data.filter(d => d.score >= 70).sort((a, b) => b.score - a.score);
+    } else {
+        // Top scores (Academic Weapons)
+        data = data.filter(d => d.score < 70).sort((a, b) => a.score - b.score);
+    }
+
+    list.innerHTML = '';
     const visibleCount = isPremiumUser ? data.length : 5;
 
     data.slice(0, visibleCount).forEach((entry, i) => {
         const row = document.createElement('div');
-        row.className = 'lb-row';
+        row.className = 'lb-row' + (entry.isPremium ? ' premium-row' : '');
         const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
-        const isLocked = entry.name === '???';
+        
         row.innerHTML = `
             <div class="lb-rank ${rankClass}">${medal}</div>
             <div class="lb-info">
-                <div class="lb-name">${isLocked ? '🔒 Hidden (Premium)' : entry.name}</div>
-                <div class="lb-type">${isLocked ? 'Unlock to reveal' : entry.type}</div>
+                <div class="lb-name">${entry.displayName} ${entry.isPremium ? '⭐' : ''}</div>
+                <div class="lb-type">${entry.type}</div>
             </div>
-            <div class="lb-score" style="${isLocked ? 'filter:blur(4px)' : ''}">${entry.score}/100</div>
+            <div class="lb-score">${entry.score}/100</div>
         `;
         list.appendChild(row);
     });
 
-    teaser.style.display = isPremiumUser ? 'none' : 'block';
+    teaser.style.display = (isPremiumUser || data.length <= 5) ? 'none' : 'block';
 }
 
 // ====== Profile ======
@@ -386,15 +403,28 @@ function calculateResult() {
 }
 
 // ====== Save + Share ======
+// ====== Save + Share ======
 async function handleSaveResult() {
-    if (!currentUser) { showModal('auth'); return; }
-    const success = await saveUserResult(totalScore, finalType, finalRank);
-    if (success) {
-        showToast('Rank saved to Leaderboard! 🏆');
-        document.getElementById('save-result-btn').textContent = 'Saved ✓';
-        document.getElementById('save-result-btn').disabled = true;
+    let guestNick = null;
+    if (!currentUser) {
+        guestNick = prompt("Enter a nickname to show on the leaderboard (leave blank for Guest):");
+        if (guestNick === null) return; // User cancelled prompt
+        if (!guestNick) guestNick = `Guest-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+
+    const btn = document.getElementById('save-result-btn');
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+
+    const res = await saveUserResult(totalScore, finalType, finalRank, guestNick);
+    
+    if (res.success) {
+        showToast(`Rank saved as ${res.displayName}! 🏆`);
+        btn.textContent = 'Saved ✓';
     } else {
         showToast('Error saving rank.');
+        btn.disabled = false;
+        btn.textContent = 'Save Result';
     }
 }
 

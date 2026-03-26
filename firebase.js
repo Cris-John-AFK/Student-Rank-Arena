@@ -116,29 +116,75 @@ export async function checkPremiumStatus(email) {
 // ================================================
 // Save Quiz Result
 // ================================================
-export async function saveUserResult(score, studentType, rankPercentile) {
+export async function saveUserResult(score, studentType, rankPercentile, guestNickname = null) {
     const user = getCurrentUser();
-    const email = user?.email || 'guest';
+    const email = user?.email || null;
+    
+    // Generate unique ID for guests or use email for users
+    const userId = email || `guest_${Date.now()}`;
+    const displayName = user?.displayName || guestNickname || `Anonymous Student`;
+
     const resultData = {
-        userId: email,
-        displayName: user?.displayName || email.split('@')[0],
-        score, type: studentType, rank: rankPercentile,
-        date: new Date().toISOString()
+        userId,
+        displayName,
+        score,
+        type: studentType,
+        rank: rankPercentile,
+        date: new Date().toISOString(),
+        isPremium: !!(await checkPremiumStatus(email))
     };
 
     if (isFirebaseConfigured) {
         try {
+            // Save to global results
             await addDoc(collection(db, 'results'), resultData);
-            await setDoc(doc(db, 'users', email), {
-                lastScore: score, lastRank: rankPercentile,
-                lastType: studentType, lastPlayed: new Date().toISOString()
-            }, { merge: true });
-            return true;
-        } catch (e) { console.error('Save failed:', e); return false; }
+            
+            // If logged in, also update user document
+            if (email) {
+                await setDoc(doc(db, 'users', email), {
+                    lastScore: score,
+                    lastRank: rankPercentile,
+                    lastType: studentType,
+                    lastPlayed: new Date().toISOString()
+                }, { merge: true });
+            }
+            return { success: true, displayName };
+        } catch (e) {
+            console.error('Save failed:', e);
+            return { success: false };
+        }
     } else {
         const results = JSON.parse(localStorage.getItem('studentResults') || '[]');
         results.push(resultData);
         localStorage.setItem('studentResults', JSON.stringify(results));
-        return true;
+        return { success: true, displayName };
+    }
+}
+
+// ================================================
+// Fetch Leaderboard (Real Firestore Data)
+// ================================================
+export async function fetchLeaderboard(limitCount = 20) {
+    if (!isFirebaseConfigured) return null;
+
+    try {
+        const { query, collection, orderBy, limit, getDocs } = await import("firebase/firestore");
+        const resultsRef = collection(db, 'results');
+        
+        // Query for top scores (closest to 0 is better for rank/score in some logics, 
+        // but here totalScore represents performance where lower score/percentile is better)
+        // Let's sort by score ascending (Rank 1 is best)
+        const q = query(resultsRef, orderBy('score', 'asc'), limit(limitCount));
+        const querySnapshot = await getDocs(q);
+        
+        const leaderboardData = [];
+        querySnapshot.forEach((doc) => {
+            leaderboardData.push({ id: doc.id, ...doc.data() });
+        });
+        
+        return leaderboardData;
+    } catch (e) {
+        console.error("Leaderboard fetch failed:", e);
+        return [];
     }
 }
