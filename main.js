@@ -5,6 +5,7 @@ import { getCurrentUser, authenticateUser, saveUserResult } from './firebase.js'
 const screens = {
     landing: document.getElementById('landing'),
     quiz: document.getElementById('quiz'),
+    'ad-screen': document.getElementById('ad-screen'),
     calculating: document.getElementById('calculating'),
     result: document.getElementById('result')
 };
@@ -51,8 +52,8 @@ document.querySelectorAll('.pricing-card').forEach(card => {
 });
 
 function showScreen(screenId) {
-    Object.values(screens).forEach(s => s.classList.remove('active'));
-    screens[screenId].classList.add('active');
+    Object.values(screens).forEach(s => { if (s) s.classList.remove('active'); });
+    if (screens[screenId]) screens[screenId].classList.add('active');
 }
 
 function showModal(modalId) {
