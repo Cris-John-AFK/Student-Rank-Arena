@@ -195,11 +195,11 @@ async function renderLeaderboard(tab) {
 
     // Filter by tab
     if (tab === 'chaos') {
-        // Chaos tier are the high score students (Crammers/Menaces)
-        data = data.filter(d => d.score >= 70).sort((a, b) => b.score - a.score);
+        // Chaos tier are the low score students (Menaces/Crammers)
+        data = data.filter(d => d.score < 50).sort((a, b) => a.score - b.score);
     } else {
-        // Top scores (Academic Weapons)
-        data = data.filter(d => d.score < 70).sort((a, b) => a.score - b.score);
+        // Academic Weapons (High scores)
+        data = data.filter(d => d.score >= 50).sort((a, b) => b.score - a.score);
     }
 
     list.innerHTML = '';
@@ -402,40 +402,41 @@ function calculateResult() {
     let type = '', rarity = '', description = '', focus = 0, social = 0, clutch = 0, strongTrait = '';
     let proTip = '';
 
-    if (totalScore <= 40) {
-        type = 'The Overachiever 🧠';
+    // 🔥 NEW SCORING: High Score = Academic Weapon (100)
+    if (totalScore >= 85) {
+        type = 'Academic Weapon 🔥';
         finalRank = Math.floor(Math.random() * 5) + 1;
         rarity = finalRank === 1 ? 'Diamond Tier 💎 (One of a Kind)' : 'Legendary 🌟';
         description = "You're a rare breed of student who balances discipline with raw ambition. You don't just pass; you dominate. Your focus is legendary.";
-        focus = 95; social = 50; clutch = 40; strongTrait = 'Dicipline 🛡️';
+        focus = 95; social = 50; clutch = 40; strongTrait = 'Discipline 🛡️';
         proTip = "Take breaks! Even weapons need maintenance to avoid burnout.";
-    } else if (totalScore <= 60) {
-        type = 'The Consistent Grinder 📚';
+    } else if (totalScore >= 70) {
+        type = 'The Overachiever 🧠';
         finalRank = Math.floor(Math.random() * 10) + 5;
         rarity = 'Top-Tier 🥇';
         description = "Solid, reliable, and hardworking. You might not be a 'genius' in your own eyes, but your consistency puts you ahead of 80% of students.";
-        focus = 80; social = 60; clutch = 30; strongTrait = 'Consistency 📈';
+        focus = 85; social = 60; clutch = 30; strongTrait = 'Consistency 📈';
         proTip = "Try teaching others what you learn; it will solidify your top-tier rank.";
-    } else if (totalScore <= 75) {
-        type = 'The Chill Passer 😌';
-        finalRank = Math.floor(Math.random() * 15) + 20;
+    } else if (totalScore >= 45) {
+        type = 'The Consistent Grinder 📚';
+        finalRank = Math.floor(Math.random() * 20) + 20;
         rarity = 'Uncommon ✨';
         description = "You have the talent but prefer the easy life. You do 'just enough' to stay safe. You're the master of the minimum effort, maximum result.";
-        focus = 50; social = 85; clutch = 60; strongTrait = 'Efficiency ⚡';
+        focus = 70; social = 85; clutch = 60; strongTrait = 'Efficiency ⚡';
         proTip = "Imagine what you could do if you gave just 10% more effort.";
-    } else if (totalScore <= 90) {
-        type = 'The Crammer 💀';
-        finalRank = Math.floor(Math.random() * 25) + 40;
+    } else if (totalScore >= 20) {
+        type = 'The Chill Passer 😌';
+        finalRank = Math.floor(Math.random() * 30) + 40;
         rarity = 'Common 📉';
         description = "Living on the edge! You ignore everything for 3 weeks and then finish the whole semester in one night of pure adrenaline.";
-        focus = 20; social = 40; clutch = 100; strongTrait = 'Clutch Chaos 🎢';
+        focus = 40; social = 40; clutch = 90; strongTrait = 'Clutch Chaos 🎢';
         proTip = "Your heart won't last forever at this rate; start 2 days earlier next time.";
     } else {
-        type = 'Ghost Student 👻';
+        type = 'Chaos Tier Ghost 👻';
         finalRank = Math.floor(Math.random() * 20) + 75;
         rarity = 'Low Stakes 🍃';
         description = "A true chaos tier student. You probably aren't even sure what course you're taking, yet somehow you're still here. Respect.";
-        focus = 10; social = 95; clutch = 80; strongTrait = 'Pure Luck 🍀';
+        focus = 10; social = 95; clutch = 100; strongTrait = 'Pure Luck 🍀';
         proTip = "Check your email. Seriously. There are probably 50 missed deadlines.";
     }
 

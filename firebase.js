@@ -122,7 +122,14 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     
     // Generate unique ID for guests or use email for users
     const userId = email || `guest_${Date.now()}`;
-    const displayName = user?.displayName || guestNickname || `Anonymous Student`;
+    let displayName = user?.displayName || guestNickname;
+    
+    // 🔥 Fix: If logged in but name is null/Anonymous, fallback to email prefix
+    if (!displayName && email) {
+        displayName = email.split('@')[0];
+    } else if (!displayName) {
+        displayName = "Anonymous Student";
+    }
 
     const resultData = {
         userId,
