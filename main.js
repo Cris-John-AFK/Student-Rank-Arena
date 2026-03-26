@@ -449,7 +449,7 @@ async function handleAuthSubmit(e) {
     btn.textContent = isSignUpMode ? 'Sign Up' : 'Log In';
 
     if (res.success) {
-        currentUser = getCurrentUser();
+        currentUser = res.user;
         // 🔑 Check if user is Premium in Firestore
         const userEmail = currentUser?.email || email;
         premiumData = await checkPremiumStatus(userEmail);
