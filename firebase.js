@@ -207,17 +207,15 @@ export async function fetchUserResults(email) {
 // ================================================
 // Fetch Leaderboard (Real Firestore Data)
 // ================================================
-export async function fetchLeaderboard(limitCount = 20) {
+export async function fetchLeaderboard(limitCount = 100) {
     if (!isFirebaseConfigured) return null;
 
     try {
         const { query, collection, orderBy, limit, getDocs } = await import("firebase/firestore");
         const resultsRef = collection(db, 'results');
         
-        // Query for top scores (closest to 0 is better for rank/score in some logics, 
-        // but here totalScore represents performance where lower score/percentile is better)
-        // Let's sort by score ascending (Rank 1 is best)
-        const q = query(resultsRef, orderBy('score', 'asc'), limit(limitCount));
+        // We fetch a larger pool (100) to allow JS-side filtering of Top vs Chaos
+        const q = query(resultsRef, orderBy('score', 'desc'), limit(limitCount));
         const querySnapshot = await getDocs(q);
         
         const leaderboardData = [];

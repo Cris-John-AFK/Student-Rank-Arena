@@ -195,11 +195,16 @@ async function renderLeaderboard(tab) {
 
     // Filter by tab
     if (tab === 'chaos') {
-        // Chaos tier are the low score students (Menaces/Crammers)
-        data = data.filter(d => d.score < 50).sort((a, b) => a.score - b.score);
+        // Chaos tier (Low to average scores)
+        data = data.filter(d => d.score < 70).sort((a, b) => a.score - b.score);
     } else {
-        // Academic Weapons (High scores)
-        data = data.filter(d => d.score >= 50).sort((a, b) => b.score - a.score);
+        // Academic Weapons & Overachievers (Elite high scores)
+        data = data.filter(d => d.score >= 70).sort((a, b) => b.score - a.score);
+    }
+
+    if (data.length === 0) {
+        list.innerHTML = `<div class="lb-loading">No one in the ${tab === 'chaos' ? 'Chaos' : 'Top'} tier yet. 🎯</div>`;
+        return;
     }
 
     list.innerHTML = '';
@@ -285,6 +290,8 @@ async function openProfile() {
 
     // Refresh Premium Plan Display
     const planInfo = document.getElementById('premium-plan-info');
+    const upgradeBtn = document.getElementById('upgrade-lifetime-btn');
+
     if (isPremiumUser && premiumData) {
         planInfo.style.display = 'block';
         document.getElementById('plan-name').textContent = premiumData.plan === 'lifetime' ? 'Lifetime 🔥' : 'Monthly 🗓️';
@@ -292,6 +299,7 @@ async function openProfile() {
         const daysInfo = document.getElementById('plan-days-info');
         if (premiumData.plan === 'monthly' && premiumData.expiresAt) {
             daysInfo.style.display = 'block';
+            upgradeBtn.style.display = 'block';
             const now = new Date();
             const expiry = new Date(premiumData.expiresAt);
             const diffTime = Math.max(0, expiry - now);
@@ -301,8 +309,11 @@ async function openProfile() {
             const percentage = Math.min(100, Math.max(0, (diffDays / 30) * 100));
             document.getElementById('plan-days-bar').style.width = `${percentage}%`;
             document.getElementById('plan-expires-on').textContent = `Renews on: ${expiry.toLocaleDateString()}`;
+
+            upgradeBtn.onclick = () => { window.open(import.meta.env.VITE_PAYMONGO_LINK, '_blank'); };
         } else {
             daysInfo.style.display = 'none';
+            upgradeBtn.style.display = 'none';
         }
     } else {
         planInfo.style.display = 'none';
