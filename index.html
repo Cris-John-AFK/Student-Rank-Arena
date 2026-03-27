@@ -640,14 +640,19 @@
                  data-full-width-responsive="true"></ins>
             <script>
                 (function() {
-                    const pushAd = () => {
+                    const initAds = () => {
                         try {
-                            const ins = document.querySelector('.ad-footer .adsbygoogle');
-                            if (ins && ins.clientWidth > 10) (adsbygoogle = window.adsbygoogle || []).push({});
-                            else setTimeout(pushAd, 800);
+                            if (window.adsbygoogle) {
+                                const ins = document.querySelector('.ad-footer .adsbygoogle');
+                                if (ins && ins.clientWidth > 10) (adsbygoogle = window.adsbygoogle || []).push({});
+                                else setTimeout(initAds, 1000);
+                            } else {
+                                setTimeout(initAds, 1000);
+                            }
                         } catch(e) {}
-                    };
-                    pushAd();
+                    }
+                    if (document.readyState === 'complete') initAds();
+                    else window.addEventListener('load', initAds);
                 })();
             </script>
         </div>

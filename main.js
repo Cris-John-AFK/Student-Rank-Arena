@@ -228,7 +228,7 @@ async function renderLeaderboard(tab) {
         const [top3, aroundMe, myRank] = await Promise.all([
             fetchLeaderboard('elo', 3),
             fetchLeaderboardAround('elo', myElo, 3),
-            getUserEloRank(myElo, profile?.date || new Date().toISOString())
+            getUserEloRank(myElo)
         ]);
 
         const merged = [...top3];
@@ -376,9 +376,8 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
         const myId = getPersistentId();
         getUserProfileData(myId).then(data => {
             const elo = data?.elo || (typeof score === 'number' ? (score * 20) + 50 : 500);
-            const date = data?.date || new Date().toISOString();
             eloEl.textContent = elo;
-            getUserEloRank(elo, date).then(wRank => {
+            getUserEloRank(elo).then(wRank => {
                 if (wRankEl) wRankEl.textContent = `#${wRank}`;
             });
         });
@@ -433,11 +432,10 @@ window._openPublicProfile = function(entry) {
     const pElo = document.getElementById('public-elo');
     const pWRank = document.getElementById('public-world-rank');
     const elo = entry.elo || 500;
-    const date = entry.date || new Date().toISOString();
     if (pElo) pElo.textContent = elo;
     if (pWRank) {
         pWRank.textContent = '#—';
-        getUserEloRank(elo, date).then(r => pWRank.textContent = `#${r}`);
+        getUserEloRank(elo).then(r => pWRank.textContent = `#${r}`);
     }
 
     const earnedScores = entry.earnedScores || (entry.score !== undefined ? [entry.score] : []);
