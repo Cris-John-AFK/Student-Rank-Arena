@@ -209,11 +209,11 @@ async function renderLeaderboard(tab) {
 
     // Filter by tab
     if (tab === 'chaos') {
-        // Chaos tier (Failing scores / true menaces)
-        data = data.filter(d => d.score < 50).sort((a, b) => a.score - b.score);
+        // Chaos tier (Opposite sorting: Lowest scores win!)
+        data = data.sort((a, b) => a.score - b.score);
     } else {
-        // Top Players (Anyone who passed with 50+)
-        data = data.filter(d => d.score >= 50).sort((a, b) => b.score - a.score);
+        // Top Players (Highest scores win!)
+        data = data.sort((a, b) => b.score - a.score);
     }
 
     // 🏆 Leaderboard Deduplication: 
