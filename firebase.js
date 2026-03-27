@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, doc, getDoc, setDoc } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
@@ -121,7 +121,7 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     const email = user?.email || null;
     
     // Generate unique ID for guests or use email for users
-    const userId = email || `guest_${Date.now()}`;
+    let userId = email || `guest_${Date.now()}`;
     let displayName = user?.displayName || guestNickname;
     
     // 🔥 Fix: If logged in but name is null/Anonymous, fallback to email prefix
@@ -135,7 +135,7 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
         userId,
         displayName,
         score,
-        type: studentType,
+        type: studentType, // Use the specific granular type, not the broad rarity tag
         rank: rankPercentile,
         date: new Date().toISOString(),
         isPremium: !!(await checkPremiumStatus(email))
@@ -143,6 +143,17 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
 
     if (isFirebaseConfigured) {
         try {
+            // 🛡️ Anonymous Auth for strict Firestore rules check
+            if (!email) {
+                // Creates an anonymous authenticated session so Firestore doesn't block unauthenticated saves
+                await signInAnonymously(auth);
+                const aUser = auth.currentUser;
+                if (aUser) {
+                    userId = aUser.uid; 
+                    resultData.userId = userId;
+                }
+            }
+
             // 🏆 Leaderboard Cleanliness: One entry per user
             // We use the userId (email for logged-in users) as the document ID
             const leaderboardRef = doc(db, 'results', userId);

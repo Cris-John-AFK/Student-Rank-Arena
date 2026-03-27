@@ -496,7 +496,7 @@ function calculateResult() {
         proTip = "Check your email. Seriously. There are probably 50 missed deadlines.";
     }
 
-    finalType = rarity || type;
+    finalType = type;
     document.getElementById('result-type').textContent = finalType;
     document.getElementById('result-score').textContent = `${totalScore}/100`;
     document.getElementById('result-rank').textContent = `Top ${finalRank}%`;
