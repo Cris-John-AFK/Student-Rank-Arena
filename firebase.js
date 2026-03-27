@@ -164,9 +164,9 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
             // 🏆 Leaderboard Cleanliness: One entry per user
             const leaderboardRef = doc(db, 'results', userId);
 
-            // 🔄 Use arrayUnion to ACCUMULATE earned types (never overwrite!)
+            // 🔄 Use arrayUnion with SCORE NUMBERS to accumulate (immune to type name changes!)
             const { arrayUnion } = await import('firebase/firestore');
-            const saveData = { ...resultData, earnedTypes: arrayUnion(studentType) };
+            const saveData = { ...resultData, earnedScores: arrayUnion(score) };
             await setDoc(leaderboardRef, saveData, { merge: true });
 
             // If logged in, ALSO update their permanent user profile document

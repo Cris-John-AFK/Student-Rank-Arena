@@ -298,34 +298,48 @@ async function renderLeaderboard(tab) {
 }
 
 // ====== Achievements Section Renderer ======
-function renderAchievementsSection(gridId, barId, countId, earnedTypes) {
+function getRarity(score) {
+    if (score >= 90) return { label: 'Legendary ✨', color: '#ffd700', bg: 'rgba(255,215,0,0.15)', border: 'rgba(255,215,0,0.5)' };
+    if (score >= 75) return { label: 'Epic 💜', color: '#c084fc', bg: 'rgba(192,132,252,0.15)', border: 'rgba(192,132,252,0.5)' };
+    if (score >= 55) return { label: 'Rare 💙', color: '#60a5fa', bg: 'rgba(96,165,250,0.15)', border: 'rgba(96,165,250,0.5)' };
+    if (score >= 30) return { label: 'Uncommon 💚', color: '#4ade80', bg: 'rgba(74,222,128,0.12)', border: 'rgba(74,222,128,0.4)' };
+    return { label: 'Common ⚪', color: '#9ca3af', bg: 'rgba(156,163,175,0.1)', border: 'rgba(156,163,175,0.3)' };
+}
+
+function renderAchievementsSection(gridId, barId, countId, earnedScores) {
     const grid = document.getElementById(gridId);
     const bar = document.getElementById(barId);
     const countEl = document.getElementById(countId);
     if (!grid) return;
 
-    const earned = new Set(earnedTypes || []);
-    const total = 101; // scores 0-100
+    const earned = new Set((earnedScores || []).map(Number));
+    const total = 101;
     const unlockedCount = earned.size;
 
-    // Progress
     if (countEl) countEl.textContent = `${unlockedCount} / ${total}`;
     if (bar) bar.style.width = `${(unlockedCount / total) * 100}%`;
 
-    // All 101 types from the dict
-    let html = '';
+    if (unlockedCount === 0) {
+        grid.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem;">Finish a quiz to unlock types!</span>';
+        return;
+    }
+
+    // Sort: unlocked first (by score desc = rarity first), then locked ???
+    let unlockedHtml = '';
+    let lockedHtml = '';
+
     for (let score = 100; score >= 0; score--) {
         const typeDef = studentTypesDict[score];
         if (!typeDef) continue;
-        const typeName = typeDef.type;
-        const isUnlocked = earned.has(typeName);
+        const isUnlocked = earned.has(score);
         if (isUnlocked) {
-            html += `<span class="achieve-pill unlocked" title="Score: ${score}/100">${typeName}</span>`;
+            const r = getRarity(score);
+            unlockedHtml += `<span class="achieve-pill" style="background:${r.bg}; border-color:${r.border}; color:${r.color};" title="Score ${score}/100 · ${r.label}">${typeDef.type}</span>`;
         } else {
-            html += `<span class="achieve-pill locked" title="Score ${score}/100 — not yet discovered">???</span>`;
+            lockedHtml += `<span class="achieve-pill locked" title="Score ${score}/100 — not yet discovered">???</span>`;
         }
     }
-    grid.innerHTML = html || '<span style="color:var(--text-muted);font-size:0.8rem;">No types unlocked yet.</span>';
+    grid.innerHTML = unlockedHtml + lockedHtml;
 }
 
 function renderAchievementBadges(containerId, achievement) {
@@ -378,8 +392,9 @@ window._openPublicProfile = function(entry) {
     // Render their exclusive dev achievement badge at top
     renderAchievementBadges('public-achievements', entry.achievement);
     
-    // Render their discovered types grid
-    renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', entry.earnedTypes);
+    // Use earnedScores (numbers) or fall back to current score
+    const earnedScores = entry.earnedScores || (entry.score !== undefined ? [entry.score] : []);
+    renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', earnedScores);
     
     // Apply glow class to the modal panel
     const panel = modal.querySelector('.glass-panel');
@@ -498,12 +513,15 @@ async function openProfile() {
 
     if (myResults.length > 0) {
         const best = myResults.reduce((a, b) => a.score > b.score ? a : b);
-        const allEarned = myResults.flatMap(r => r.earnedTypes || (r.type ? [r.type] : []));
-        updateProfileStatsUI(best.score, best.rank, best.type, best.achievement, allEarned);
+        // Collect all earned scores — use earnedScores array if present, fall back to score field
+        const allEarnedScores = [...new Set(
+            myResults.flatMap(r => r.earnedScores || (r.score !== undefined ? [r.score] : []))
+        )];
+        updateProfileStatsUI(best.score, best.rank, best.type, best.achievement, allEarnedScores);
     } else {
         const userData = await getUserProfileData(currentUser.email);
         if (userData && (userData.lastScore !== undefined)) {
-            updateProfileStatsUI(userData.lastScore, userData.lastRank, userData.lastType || '—', userData.achievement, []);
+            updateProfileStatsUI(userData.lastScore, userData.lastRank, userData.lastType || '—', userData.achievement, [userData.lastScore]);
         } else {
             updateProfileStatsUI('No quiz yet', '—', '—', null, []);
         }
@@ -560,9 +578,12 @@ function renderQuestion() {
     const prevBtn = document.getElementById('prev-btn');
     prevBtn.style.display = currentQuestionIndex > 0 ? 'inline-block' : 'none';
 
+    // 🎲 Shuffle options so option A is never predictably "the right answer"
+    const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+
     const optionsContainer = document.getElementById('options-container');
     optionsContainer.innerHTML = '';
-    q.options.forEach(opt => {
+    shuffledOptions.forEach(opt => {
         const btn = document.createElement('button');
         btn.className = 'option-btn';
         btn.textContent = opt.text;
