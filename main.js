@@ -266,10 +266,9 @@ async function renderLeaderboard(tab) {
         else if (isExtreme) devClass = 'extreme-border';
         else if (isVoid) devClass = 'void-border';
 
-        let displayType = entry.type;
-        if (entry.achievement) {
-            displayType += ` | ${entry.achievement}`;
-        }
+        let displayType = (entry.score !== undefined && studentTypesDict[entry.score])
+            ? studentTypesDict[entry.score].type
+            : (entry.type || '—');
 
         return `
             <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''} ${devClass}" 
@@ -278,7 +277,7 @@ async function renderLeaderboard(tab) {
                 <div class="lb-rank ${rankClass}">${medal}</div>
                 <div class="lb-info">
                     <div class="lb-name">${nameDisplay} ${entry.isPremium ? '⭐' : ''}</div>
-                    <div class="lb-type">${entry.achievement ? `<span class="achievement-pill">${entry.achievement}</span> ` : ''}${entry.type}</div>
+                    <div class="lb-type">${entry.achievement ? `<span class="achievement-pill">${entry.achievement}</span> ` : ''}${displayType}</div>
                 </div>
                 <div class="lb-score">${entry.score}/100</div>
             </div>
@@ -356,21 +355,26 @@ function renderAchievementBadges(containerId, achievement) {
     container.innerHTML = `<span style="display:inline-block; padding: 5px 16px; border-radius: 99px; font-size: 1rem; font-weight: 900; letter-spacing: 0.5px; ${style}">${achievement}</span>`;
 }
 
-function updateProfileStatsUI(score, rank, type, achievement, earnedTypes) {
+function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
     document.getElementById('prof-best-score').textContent = score === 'No quiz yet' ? score : `${score}/100`;
     document.getElementById('prof-best-rank').textContent = rank === '—' ? rank : `Top ${rank}%`;
-    document.getElementById('prof-type').textContent = type || '—';
+    
+    // Always derive type live from score dictionary so it always matches the discovered grid
+    const liveType = (typeof score === 'number' && studentTypesDict[score])
+        ? studentTypesDict[score].type
+        : (type || '—');
+    document.getElementById('prof-type').textContent = liveType;
     
     // Render exclusive dev achievement badge on top
     renderAchievementBadges('my-achievements', achievement);
     
     // Render the 101-types achievements grid
-    renderAchievementsSection('my-achieve-grid', 'my-achieve-bar', 'my-achieve-count', earnedTypes);
+    renderAchievementsSection('my-achieve-grid', 'my-achieve-bar', 'my-achieve-count', earnedScores);
     
     const panel = document.getElementById('profile').querySelector('.glass-panel');
     panel.classList.remove('creator-border', 'extreme-border', 'void-border');
     
-    const combinedStr = (type || '') + (achievement || '');
+    const combinedStr = (liveType || '') + (achievement || '');
     if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
     else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
     else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
@@ -382,24 +386,26 @@ window._openPublicProfile = function(entry) {
     document.getElementById('public-name').textContent = entry.displayName || 'Unknown';
     document.getElementById('public-score').textContent = entry.score !== undefined ? `${entry.score}/100` : '—';
     document.getElementById('public-rank').textContent = entry.rank ? `Top ${entry.rank}%` : '—';
-    document.getElementById('public-type').textContent = entry.type || '—';
+    
+    // Always derive type live from score dictionary
+    const liveType = (entry.score !== undefined && studentTypesDict[entry.score])
+        ? studentTypesDict[entry.score].type
+        : (entry.type || '—');
+    document.getElementById('public-type').textContent = liveType;
     
     const badge = document.getElementById('public-badge');
     badge.textContent = entry.isPremium ? '⭐ Premium' : 'Free';
     badge.style.background = entry.isPremium ? 'linear-gradient(135deg, #6366f1, #ec4899)' : '';
     badge.style.color = entry.isPremium ? 'white' : '';
     
-    // Render their exclusive dev achievement badge at top
     renderAchievementBadges('public-achievements', entry.achievement);
     
-    // Use earnedScores (numbers) or fall back to current score
     const earnedScores = entry.earnedScores || (entry.score !== undefined ? [entry.score] : []);
     renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', earnedScores);
     
-    // Apply glow class to the modal panel
     const panel = modal.querySelector('.glass-panel');
     panel.classList.remove('creator-border', 'extreme-border', 'void-border');
-    const combinedStr = (entry.type || '') + (entry.achievement || '');
+    const combinedStr = (liveType || '') + (entry.achievement || '');
     if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
     else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
     else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
