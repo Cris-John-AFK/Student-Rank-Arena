@@ -162,12 +162,12 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
             }
 
             // 🏆 Leaderboard Cleanliness: One entry per user
-            // We use the userId (email for logged-in users) as the document ID
             const leaderboardRef = doc(db, 'results', userId);
-            
-            // 🔄 ALWAYS UPDATE: We want the LATEST quiz attempt to be the user's rank. 
-            // This allows users to drop into the Chaos tier if they retake the quiz!
-            await setDoc(leaderboardRef, resultData, { merge: true });
+
+            // 🔄 Use arrayUnion to ACCUMULATE earned types (never overwrite!)
+            const { arrayUnion } = await import('firebase/firestore');
+            const saveData = { ...resultData, earnedTypes: arrayUnion(studentType) };
+            await setDoc(leaderboardRef, saveData, { merge: true });
 
             // If logged in, ALSO update their permanent user profile document
             if (email) {
@@ -177,7 +177,7 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
                     lastRank: rankPercentile,
                     lastType: studentType,
                     lastPlayed: new Date().toISOString(),
-                    bestScore: score, 
+                    bestScore: score,
                     bestType: studentType
                 };
                 await setDoc(userDocRef, updateUserData, { merge: true });

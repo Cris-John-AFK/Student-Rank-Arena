@@ -297,6 +297,37 @@ async function renderLeaderboard(tab) {
     teaser.style.display = 'none'; // Replaced premium teaser with 20-limit for all
 }
 
+// ====== Achievements Section Renderer ======
+function renderAchievementsSection(gridId, barId, countId, earnedTypes) {
+    const grid = document.getElementById(gridId);
+    const bar = document.getElementById(barId);
+    const countEl = document.getElementById(countId);
+    if (!grid) return;
+
+    const earned = new Set(earnedTypes || []);
+    const total = 101; // scores 0-100
+    const unlockedCount = earned.size;
+
+    // Progress
+    if (countEl) countEl.textContent = `${unlockedCount} / ${total}`;
+    if (bar) bar.style.width = `${(unlockedCount / total) * 100}%`;
+
+    // All 101 types from the dict
+    let html = '';
+    for (let score = 100; score >= 0; score--) {
+        const typeDef = studentTypesDict[score];
+        if (!typeDef) continue;
+        const typeName = typeDef.type;
+        const isUnlocked = earned.has(typeName);
+        if (isUnlocked) {
+            html += `<span class="achieve-pill unlocked" title="Score: ${score}/100">${typeName}</span>`;
+        } else {
+            html += `<span class="achieve-pill locked" title="Score ${score}/100 — not yet discovered">???</span>`;
+        }
+    }
+    grid.innerHTML = html || '<span style="color:var(--text-muted);font-size:0.8rem;">No types unlocked yet.</span>';
+}
+
 function renderAchievementBadges(containerId, achievement) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -311,13 +342,16 @@ function renderAchievementBadges(containerId, achievement) {
     container.innerHTML = `<span style="display:inline-block; padding: 5px 16px; border-radius: 99px; font-size: 1rem; font-weight: 900; letter-spacing: 0.5px; ${style}">${achievement}</span>`;
 }
 
-function updateProfileStatsUI(score, rank, type, achievement) {
+function updateProfileStatsUI(score, rank, type, achievement, earnedTypes) {
     document.getElementById('prof-best-score').textContent = score === 'No quiz yet' ? score : `${score}/100`;
     document.getElementById('prof-best-rank').textContent = rank === '—' ? rank : `Top ${rank}%`;
     document.getElementById('prof-type').textContent = type || '—';
     
-    // Render achievement badge on top
+    // Render exclusive dev achievement badge on top
     renderAchievementBadges('my-achievements', achievement);
+    
+    // Render the 101-types achievements grid
+    renderAchievementsSection('my-achieve-grid', 'my-achieve-bar', 'my-achieve-count', earnedTypes);
     
     const panel = document.getElementById('profile').querySelector('.glass-panel');
     panel.classList.remove('creator-border', 'extreme-border', 'void-border');
@@ -341,8 +375,11 @@ window._openPublicProfile = function(entry) {
     badge.style.background = entry.isPremium ? 'linear-gradient(135deg, #6366f1, #ec4899)' : '';
     badge.style.color = entry.isPremium ? 'white' : '';
     
-    // Render their achievement badge at top
+    // Render their exclusive dev achievement badge at top
     renderAchievementBadges('public-achievements', entry.achievement);
+    
+    // Render their discovered types grid
+    renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', entry.earnedTypes);
     
     // Apply glow class to the modal panel
     const panel = modal.querySelector('.glass-panel');
@@ -460,16 +497,15 @@ async function openProfile() {
     }
 
     if (myResults.length > 0) {
-        // Find best score (Highest score is best in our new ranking)
         const best = myResults.reduce((a, b) => a.score > b.score ? a : b);
-        updateProfileStatsUI(best.score, best.rank, best.type, best.achievement);
+        const allEarned = myResults.flatMap(r => r.earnedTypes || (r.type ? [r.type] : []));
+        updateProfileStatsUI(best.score, best.rank, best.type, best.achievement, allEarned);
     } else {
-        // 🔑 Second chance: check their direct user document
         const userData = await getUserProfileData(currentUser.email);
         if (userData && (userData.lastScore !== undefined)) {
-            updateProfileStatsUI(userData.lastScore, userData.lastRank, userData.lastType || '—', userData.achievement);
+            updateProfileStatsUI(userData.lastScore, userData.lastRank, userData.lastType || '—', userData.achievement, []);
         } else {
-            updateProfileStatsUI('No quiz yet', '—', '—');
+            updateProfileStatsUI('No quiz yet', '—', '—', null, []);
         }
     }
 
