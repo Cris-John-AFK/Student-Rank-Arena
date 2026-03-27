@@ -406,3 +406,38 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
 #vs-timer-text { font-variant-numeric: tabular-nums; }
 .lobby-status { animation: pulse 1.5s infinite; }
 
+/* Slot Machine Styling */
+.slot-container {
+    height: 60px;
+    overflow: hidden;
+    background: rgba(0,0,0,0.3);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    position: relative;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+}
+.slot-strip {
+    display: flex;
+    flex-direction: column;
+    transition: transform 3s cubic-bezier(0.12, 0, 0.39, 0);
+}
+.slot-item {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+.playing-slot {
+    animation: slot-glow 0.5s infinite alternate;
+}
+@keyframes slot-glow {
+    from { color: var(--primary); }
+    to { color: var(--accent); }
+}
+
+

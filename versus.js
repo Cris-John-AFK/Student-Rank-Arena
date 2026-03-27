@@ -12,6 +12,14 @@ let vsScore = 0;
 let vsOpponentScore = 0;
 let vsStatus = 'idle'; // idle, matching, lobby, playing, finished
 
+const BATTLE_TOPICS = [
+    { id: 9, name: "General Knowledge", icon: "🌍" },
+    { id: 18, name: "Computer Science", icon: "💻" },
+    { id: 19, name: "Mathematics", icon: "➕" },
+    { id: 22, name: "Geography", icon: "🗺️" },
+    { id: 23, name: "History", icon: "📜" }
+];
+
 // DOM Helper
 const screens = {
     landing: document.getElementById('landing'),
@@ -199,10 +207,15 @@ function listenToRoom(roomId) {
                 document.getElementById('p2-name').textContent = data.players[playerIds[1]].name;
                 document.getElementById('p2-avatar').textContent = '⚡';
                 document.getElementById('lobby-status').textContent = "Match Found! Prepare for Battle...";
-                if (isHost && data.playerCount === 2) {
-                    setTimeout(() => prepareGame(), 2500);
+                if (isHost && data.playerCount === 2 && data.currentQuestionIndex === -1) {
+                    setTimeout(() => spinSlotMachine(), 1500);
                 }
             }
+        }
+        
+        // Slot Machine Sync
+        if (data.status === 'lobby' && data.topicIndex !== undefined) {
+            handleSlotMachineSync(data.topicIndex);
         }
 
         // Game Start
@@ -250,11 +263,65 @@ function listenToRoom(roomId) {
     window.addEventListener('beforeunload', leaveRoom);
 }
 
-async function prepareGame() {
+async function spinSlotMachine() {
+    const topicIdx = Math.floor(Math.random() * BATTLE_TOPICS.length);
+    await updateDoc(doc(db, 'rooms', currentRoomId), { topicIndex: topicIdx });
+    // Host prepares questions in background
+    prepareGame(BATTLE_TOPICS[topicIdx].id);
+}
+
+function handleSlotMachineSync(idx) {
+    const slot = document.getElementById('vs-topic-slot');
+    const strip = document.getElementById('slot-strip');
+    if (slot.style.display === 'block') return; // Already spinning
+
+    slot.style.display = 'block';
+    
+    // Create the strip items
+    strip.innerHTML = '';
+    // Add multiple sets for infinite look
+    for(let i=0; i<5; i++) {
+        BATTLE_TOPICS.forEach(t => {
+            const el = document.createElement('div');
+            el.className = 'slot-item';
+            el.innerHTML = `${t.icon} ${t.name}`;
+            strip.appendChild(el);
+        });
+    }
+
+    // Spin Target: (LoopCount * TopicCount + idx) * ItemHeight
+    const targetY = (15 + idx) * 60; 
+    setTimeout(() => {
+        strip.style.transform = `translateY(-${targetY}px)`;
+    }, 100);
+
+    setTimeout(() => {
+        strip.classList.add('playing-slot');
+        if (isHost) {
+            setTimeout(() => {
+                updateDoc(doc(db, 'rooms', currentRoomId), { status: 'playing' });
+            }, 2000);
+        }
+    }, 4000); // 3s spin + 1s highlight
+}
+
+async function prepareGame(categoryId) {
     try {
-        const res = await fetch('https://opentdb.com/api.php?amount=5&category=9&difficulty=medium&type=multiple');
-        const json = await res.json();
-        const questions = json.results.map(q => ({
+        console.log("🛠️ Preparing 10 questions for category:", categoryId);
+        
+        const fetchLevel = (diff, count) => 
+            fetch(`https://opentdb.com/api.php?amount=${count}&category=${categoryId}&difficulty=${diff}&type=multiple`)
+            .then(r => r.json());
+
+        // 1-5 Easy, 6-7 Medium, 8-10 Hard
+        const [easy, med, hard] = await Promise.all([
+            fetchLevel('easy', 5),
+            fetchLevel('medium', 2),
+            fetchLevel('hard', 3)
+        ]);
+
+        const allRaw = [...easy.results, ...med.results, ...hard.results];
+        const questions = allRaw.map(q => ({
             category: q.category,
             text: q.question,
             correct: q.correct_answer,
@@ -262,7 +329,6 @@ async function prepareGame() {
         }));
 
         await updateDoc(doc(db, 'rooms', currentRoomId), {
-            status: 'playing',
             questions: questions,
             currentQuestionIndex: 0
         });
@@ -274,7 +340,7 @@ async function prepareGame() {
 
 function renderVsQuestion() {
     const q = vsQuestions[vsCurrentIndex];
-    document.getElementById('vs-q-count').textContent = `Question ${vsCurrentIndex + 1}/5`;
+    document.getElementById('vs-q-count').textContent = `Question ${vsCurrentIndex + 1}/10`;
     document.getElementById('vs-category').textContent = q.category;
     document.getElementById('vs-q-text').innerHTML = q.text;
     
@@ -338,7 +404,7 @@ function checkRoundOver(data) {
 
     if (allAnswered) {
         const nextIdx = data.currentQuestionIndex + 1;
-        if (nextIdx < 5) {
+        if (nextIdx < 10) {
             setTimeout(async () => {
                 await updateDoc(doc(db, 'rooms', currentRoomId), {
                     currentQuestionIndex: nextIdx,
