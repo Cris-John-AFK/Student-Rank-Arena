@@ -1,6 +1,6 @@
 import { questions } from './questions.js';
 import { studentTypesDict } from './studentTypes.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, db } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, fetchLeaderboardAround, db } from './firebase.js';
 import { initVersus } from './versus.js';
 
 // ====== DOM Screens ======
