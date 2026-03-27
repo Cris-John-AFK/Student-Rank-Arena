@@ -112,6 +112,7 @@ function setupEventListeners() {
     document.getElementById('profile-retake-btn').addEventListener('click', () => { showScreen('landing'); startQuiz(); });
     document.getElementById('profile-upgrade-btn').addEventListener('click', () => showModal('paywall'));
     document.getElementById('lb-unlock-btn').addEventListener('click', () => showModal('paywall'));
+    document.getElementById('exit-quiz-btn').addEventListener('click', () => { if(confirm('Exit quiz? Progress will not be saved.')) showScreen('landing'); });
 
     document.querySelectorAll('.close-btn').forEach(btn => btn.addEventListener('click', closeAllModals));
 
