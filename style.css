@@ -134,10 +134,11 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
 .result-header { text-align: center; margin-bottom: 2rem; }
 .type-title { font-size: 2.2rem; margin-top: 0.5rem; }
 .result-stats { display: flex; gap: 1rem; margin-bottom: 2rem; }
-.stat-box { flex: 1; background: var(--surface-light); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; text-align: center; display: flex; flex-direction: column; }
+.stat-box { flex: 1; background: var(--surface-light); border: 1px solid var(--border); border-radius: 16px; padding: 1.2rem 0.8rem; text-align: center; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
 .stat-box.primary { border-color: var(--primary); background: rgba(139, 92, 246, 0.05); }
-.stat-box .label { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
-.stat-box .value { font-size: 1.8rem; font-weight: 900; }
+.stat-box .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+.stat-box .value { font-size: 1.6rem; font-weight: 900; word-break: break-word; line-height: 1.2; }
+.stat-box .value.type-value { font-size: 0.85rem; font-weight: 700; line-height: 1.4; word-break: break-word; }
 .value.glow { color: var(--primary); text-shadow: 0 0 10px var(--primary-glow); }
 
 /* Paywall Preview Banner */
