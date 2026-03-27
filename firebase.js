@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp, startAt, endAt, getCountFromServer, deleteField } from "firebase/firestore";
+import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp, startAt, endAt, getCountFromServer, deleteField, or, and } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
@@ -284,12 +284,24 @@ export async function fetchLeaderboardAround(field, value, cushion = 3) {
     } catch (e) { console.error("Around-me fetch failed:", e); return []; }
 }
 
-export async function getUserEloRank(myElo) {
+/**
+ * 🏆 Calculates the global Elo rank of a user with tie-breaking
+ */
+export async function getUserEloRank(myElo, myDate) {
     if (!isFirebaseConfigured) return 0;
     try {
         const resultsRef = collection(db, 'results');
-        const q = query(resultsRef, where('elo', '>', myElo));
-        const snapshot = await getCountFromServer(q);
+        
+        // Final Rank = (People with more Elo) + (People with same Elo but earlier date) + 1
+        const qTieBreak = query(
+            resultsRef, 
+            or(
+                where('elo', '>', myElo),
+                and(where('elo', '==', myElo), where('date', '<', myDate))
+            )
+        );
+
+        const snapshot = await getCountFromServer(qTieBreak);
         return (snapshot.data().count || 0) + 1;
     } catch (e) { console.error("Rank fetch failed:", e); return 0; }
 }
