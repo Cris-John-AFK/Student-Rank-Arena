@@ -147,39 +147,21 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
             // We use the userId (email for logged-in users) as the document ID
             const leaderboardRef = doc(db, 'results', userId);
             
-            // Fetch existing best score
-            const existing = await getDoc(leaderboardRef);
-            let shouldUpdate = true;
-            
-            if (existing.exists()) {
-                const oldData = existing.data();
-                // Only update if the new score is BETTER (higher is better in our new system)
-                if (score <= oldData.score) {
-                    shouldUpdate = false;
-                }
-            }
-            
-            if (shouldUpdate) {
-                await setDoc(leaderboardRef, resultData, { merge: true });
-            }
+            // 🔄 ALWAYS UPDATE: We want the LATEST quiz attempt to be the user's rank. 
+            // This allows users to drop into the Chaos tier if they retake the quiz!
+            await setDoc(leaderboardRef, resultData, { merge: true });
 
             // If logged in, ALSO update their permanent user profile document
             if (email) {
                 const userDocRef = doc(db, 'users', email);
-                const userSnapshot = await getDoc(userDocRef);
                 let updateUserData = {
                     lastScore: score,
                     lastRank: rankPercentile,
                     lastType: studentType,
-                    lastPlayed: new Date().toISOString()
+                    lastPlayed: new Date().toISOString(),
+                    bestScore: score, 
+                    bestType: studentType
                 };
-                
-                // Also track "best" in the user profile separately
-                if (!userSnapshot.exists() || (score > (userSnapshot.data().bestScore || 0))) {
-                    updateUserData.bestScore = score;
-                    updateUserData.bestType = studentType;
-                }
-
                 await setDoc(userDocRef, updateUserData, { merge: true });
             }
             return { success: true, displayName, userId };
@@ -224,7 +206,10 @@ export async function fetchUserResults(email) {
         
         const myData = [];
         querySnapshot.forEach((doc) => {
-            myData.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            // 🛡️ Legacy Cleanup: Ignore old auto-generated ID documents to prevent overlapping duplicates
+            if (doc.id !== email) return; 
+            myData.push({ id: doc.id, ...data });
         });
 
         // 🏆 Sort in JS instead to stay index-free
@@ -251,7 +236,10 @@ export async function fetchLeaderboard(limitCount = 100) {
         
         const leaderboardData = [];
         querySnapshot.forEach((doc) => {
-            leaderboardData.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            // 🛡️ Legacy Cleanup: If this is an authenticated user, only trust the canonical doc (ID = email)
+            if (data.userId && data.userId.includes('@') && doc.id !== data.userId) return;
+            leaderboardData.push({ id: doc.id, ...data });
         });
         
         return leaderboardData;

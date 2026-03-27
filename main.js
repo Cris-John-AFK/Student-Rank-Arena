@@ -293,8 +293,8 @@ async function openProfile() {
     }
 
     if (myResults.length > 0) {
-        // Find best score (lowest score is best in our ranking)
-        const best = myResults.reduce((a, b) => a.score < b.score ? a : b);
+        // Find best score (Highest score is best in our new ranking)
+        const best = myResults.reduce((a, b) => a.score > b.score ? a : b);
         document.getElementById('prof-best-score').textContent = `${best.score}/100`;
         document.getElementById('prof-best-rank').textContent = `Top ${best.rank}%`;
         document.getElementById('prof-type').textContent = best.type;
