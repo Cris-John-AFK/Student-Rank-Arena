@@ -231,14 +231,24 @@ async function renderLeaderboard(tab) {
             getUserEloRank(myElo)
         ]);
 
-        const merged = [...top3];
-        aroundMe.forEach(d => {
-            if (!merged.find(m => m.id === d.id)) merged.push(d);
-        });
-        displayData = merged.sort((a, b) => b.elo - a.elo);
+        // Merge + Strict Local Deduplication (by ID AND Nickname)
+        const seenNames = new Set();
+        const seenIds = new Set();
+        displayData = [];
 
-        // Store global rank for the "Around Me" slice calculation
-        const myId = getPersistentId();
+        [...top3, ...aroundMe].forEach(d => {
+            const name = (d.displayName || "Unknown").toLowerCase();
+            const id = d.userId || d.id;
+            if (!seenNames.has(name) && !seenIds.has(id)) {
+                seenNames.add(name);
+                seenIds.add(id);
+                displayData.push(d);
+            }
+        });
+        
+        displayData.sort((a, b) => (b.elo || 500) - (a.elo || 500));
+
+        // Rank the slice sequentially
         const myIndex = displayData.findIndex(d => (d.userId === myId || d.id === myId));
         if (myIndex !== -1 && myRank) {
             displayData.forEach((d, i) => {
@@ -246,7 +256,15 @@ async function renderLeaderboard(tab) {
             });
         }
     } else {
-        displayData = await fetchLeaderboard('score', 30);
+        const raw = await fetchLeaderboard('score', 50);
+        // Deduplicate score list by name as well
+        const seen = new Set();
+        displayData = raw.filter(d => {
+            const n = (d.displayName || "Unknown").toLowerCase();
+            if (seen.has(n)) return false;
+            seen.add(n);
+            return true;
+        });
     }
     
     list.innerHTML = '';
