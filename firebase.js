@@ -256,6 +256,9 @@ export async function fetchLeaderboard(orderByField = 'score', limitCount = 50) 
         const leaderboardData = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
+            const actualIdInDoc = data.userId || null;
+            // PREVENT DUPLICATES: If this entry has a primary identity (email), skip the secondary (hash/guest) record
+            if (actualIdInDoc && actualIdInDoc.includes('@') && doc.id !== actualIdInDoc) return;
             leaderboardData.push({ id: doc.id, ...data });
         });
         // Ensure Elo exists for sorting
