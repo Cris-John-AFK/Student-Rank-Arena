@@ -84,13 +84,14 @@ export async function checkPremiumStatus(email) {
 export async function saveUserResult(score, studentType, rankPercentile, guestNickname = null) {
     const user = getCurrentUser();
     const email = user?.email || null;
-    let userId = email || `guest_${Date.now()}`;
-    let displayName = user?.displayName || guestNickname || "Anonymous Student";
     
+    // 🛡️ CANONICAL ID FIX: Always prioritize email over UID to preserve legacy progress
+    const currentUserId = email || auth?.currentUser?.uid || `guest_${Date.now()}`;
+    let displayName = user?.displayName || guestNickname || "Anonymous Student";
     if (!displayName && email) displayName = email.split('@')[0];
 
     const resultData = {
-        userId,
+        userId: currentUserId,
         displayName,
         score,
         type: studentType,
@@ -136,9 +137,9 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     if (isFirebaseConfigured) {
         try {
             if (!email) await signInAnonymously(auth);
-            const currentUserId = auth.currentUser?.uid || userId;
             const leaderboardRef = doc(db, 'results', currentUserId);
-            const saveData = { ...resultData, userId: currentUserId, earnedScores: arrayUnion(score) };
+            // 🔄 Preserve achievements on save
+            const saveData = { ...resultData, earnedScores: arrayUnion(score) };
             await setDoc(leaderboardRef, saveData, { merge: true });
             
             return { 
@@ -154,7 +155,7 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
         }
     } else {
         localStorage.setItem('lastResult', JSON.stringify(resultData));
-        return { success: true, displayName, userId, elo: eloToReturn };
+        return { success: true, displayName, userId: currentUserId, elo: eloToReturn };
     }
 }
 
@@ -190,12 +191,20 @@ export async function getUserProfileData(email) {
 export async function fetchUserResults(userId) {
     if (!userId || !isFirebaseConfigured) return [];
     try {
+        // userId could be email or UID hash
         const resultsRef = collection(db, 'results');
+        const docRef = doc(db, 'results', userId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            return [{ id: docSnap.id, ...docSnap.data() }];
+        }
+        
         const q = query(resultsRef, where('userId', '==', userId));
         const querySnapshot = await getDocs(q);
         const myData = [];
         querySnapshot.forEach((doc) => {
-            if (doc.id === userId) myData.push({ id: doc.id, ...doc.data() });
+             myData.push({ id: doc.id, ...doc.data() });
         });
         return myData.sort((a, b) => new Date(b.date) - new Date(a.date));
     } catch (e) { console.error("User results fetch failed:", e); return []; }
@@ -210,7 +219,9 @@ export async function fetchLeaderboard(limitCount = 100) {
         const leaderboardData = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            if (data.userId && data.userId.includes('@') && doc.id !== data.userId) return;
+            const actualIdInDoc = data.userId || null;
+            // 🛡️ Filter duplicates: if current doc.id is a hash but doc has an email userId, skip the hash
+            if (actualIdInDoc && actualIdInDoc.includes('@') && doc.id !== actualIdInDoc) return;
             leaderboardData.push({ id: doc.id, ...data });
         });
         return leaderboardData;

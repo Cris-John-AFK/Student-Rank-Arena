@@ -518,8 +518,10 @@ async function openProfile() {
     document.getElementById('profile-email').textContent = currentUser.email || '';
 
     // Clear stats while loading
-    document.getElementById('prof-best-score').textContent = '...';
-    document.getElementById('prof-best-rank').textContent = '...';
+    const eloEl = document.getElementById('profile-elo');
+    const rankEl = document.getElementById('profile-rank');
+    if (eloEl) eloEl.textContent = '...';
+    if (rankEl) rankEl.textContent = '...';
     document.getElementById('prof-type').textContent = '...';
 
     const badge = document.getElementById('profile-badge');
@@ -539,11 +541,12 @@ async function openProfile() {
 
     // Load real results from Firestore
     let myResults = [];
+    const canonicalId = currentUser.email || currentUser.uid;
     if (isFirebaseConfigured) {
-        myResults = await fetchUserResults(currentUser.email || currentUser.uid);
+        myResults = await fetchUserResults(canonicalId);
     } else {
         const results = JSON.parse(localStorage.getItem('studentResults') || '[]');
-        myResults = results.filter(r => r.userId === (currentUser.email || currentUser.uid));
+        myResults = results.filter(r => r.userId === canonicalId);
     }
 
     if (myResults.length > 0) {
