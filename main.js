@@ -300,7 +300,7 @@ async function renderLeaderboard(tab) {
 
         return `
             <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''} ${devClass}" 
-                 onclick="window._openPublicProfile(${JSON.stringify(entry).replace(/"/g, '&quot;')})">
+                 onclick='window._openPublicProfile(${JSON.stringify({...entry, absoluteRank: (entry.absoluteRank || (index+1))}).replace(/'/g, "&apos;")})'>
                 <div class="lb-rank">${medal}</div>
                 <div class="lb-info">
                     <div class="lb-name">${nameDisplay} ${entry.isPremium ? '⭐' : ''}</div>
@@ -452,8 +452,13 @@ window._openPublicProfile = function(entry) {
     const elo = entry.elo || 500;
     if (pElo) pElo.textContent = elo;
     if (pWRank) {
-        pWRank.textContent = '#—';
-        getUserEloRank(elo).then(r => pWRank.textContent = `#${r}`);
+        // Use the precise rank from the leaderboard if available
+        if (entry.absoluteRank) {
+            pWRank.textContent = `#${entry.absoluteRank}`;
+        } else {
+            pWRank.textContent = '#—';
+            getUserEloRank(elo).then(r => pWRank.textContent = `#${r}`);
+        }
     }
 
     const earnedScores = entry.earnedScores || (entry.score !== undefined ? [entry.score] : []);

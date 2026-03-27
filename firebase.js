@@ -169,6 +169,12 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
             const saveData = { ...resultData, earnedScores: arrayUnion(score) };
             await setDoc(leaderboardRef, saveData, { merge: true });
             
+            // 🔥 IDENTITY CLEANUP: If registered, delete any old guest 'ghost' record for this session
+            const persistentId = getPersistentId();
+            if (email && persistentId && persistentId !== email) {
+                try { await deleteDoc(doc(db, 'results', persistentId)); } catch(ee){}
+            }
+            
             return { success: true, displayName, userId: currentUserId, isNewElo, elo: eloToReturn };
         } catch (e) {
             console.error('Save failed:', e);
