@@ -361,15 +361,23 @@ function renderAchievementBadges(containerId, achievement) {
 
 function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
     const eloEl = document.getElementById('profile-elo');
-    const rankEl = document.getElementById('profile-rank');
+    const wRankEl = document.getElementById('profile-world-rank');
+    const bScoreEl = document.getElementById('profile-score');
+    const bRankEl = document.getElementById('profile-rank');
+    
     if (eloEl) {
-        // Fetch fresh profile data for Elo
         getUserProfileData(currentUser?.email).then(data => {
-            if (data && data.elo) eloEl.textContent = data.elo;
-            else if (typeof score === 'number') eloEl.textContent = (score * 20) + 50; 
+            const elo = data?.elo || (typeof score === 'number' ? (score * 20) + 50 : 500);
+            eloEl.textContent = elo;
+            // Also fetch world rank
+            getUserEloRank(elo).then(wRank => {
+                if (wRankEl) wRankEl.textContent = `#${wRank}`;
+            });
         });
     }
-    if (rankEl) rankEl.textContent = rank === '—' ? rank : `Top ${rank}%`;
+    
+    if (bScoreEl) bScoreEl.textContent = (score !== undefined && score !== 'No quiz yet') ? `${score}/100` : '—';
+    if (bRankEl) bRankEl.textContent = rank === '—' ? rank : `Top ${rank}%`;
     
     // Always derive type live from score dictionary
     const liveType = (typeof score === 'number' && studentTypesDict[score])
@@ -413,9 +421,15 @@ window._openPublicProfile = function(entry) {
     
     renderAchievementBadges('public-achievements', entry.achievement);
     
-    // 🔥 Public Profile Elo
+    // 🔥 Public Elo & World Rank
     const pElo = document.getElementById('public-elo');
-    if (pElo) pElo.textContent = entry.elo || '500';
+    const pWRank = document.getElementById('public-world-rank');
+    const elo = entry.elo || 500;
+    if (pElo) pElo.textContent = elo;
+    if (pWRank) {
+        pWRank.textContent = '#—';
+        getUserEloRank(elo).then(r => pWRank.textContent = `#${r}`);
+    }
 
     const earnedScores = entry.earnedScores || (entry.score !== undefined ? [entry.score] : []);
     renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', earnedScores);
