@@ -236,9 +236,13 @@ function listenToRoom(roomId) {
 
         // Live Question Sync
         if (data.status === 'playing') {
-            if (data.currentQuestionIndex !== vsCurrentIndex) {
+            if (data.questions && !vsQuestions.length) {
+                vsQuestions = data.questions; 
+            }
+
+            if (data.currentQuestionIndex !== vsCurrentIndex || !document.getElementById('vs-options').children.length) {
                  vsCurrentIndex = data.currentQuestionIndex;
-                 renderVsQuestion();
+                 if (vsQuestions.length) renderVsQuestion();
             }
             // Update HUD
             const pIds = Object.keys(data.players);
@@ -276,8 +280,8 @@ function listenToRoom(roomId) {
 async function spinSlotMachine() {
     const topicIdx = Math.floor(Math.random() * BATTLE_TOPICS.length);
     await updateDoc(doc(db, 'rooms', currentRoomId), { topicIndex: topicIdx });
-    // Host prepares questions in background
-    prepareGame(BATTLE_TOPICS[topicIdx].id);
+    // Host prepares questions and WAITS for completion
+    await prepareGame(BATTLE_TOPICS[topicIdx].id);
 }
 
 function handleSlotMachineSync(idx) {
@@ -308,11 +312,18 @@ function handleSlotMachineSync(idx) {
     setTimeout(() => {
         strip.classList.add('playing-slot');
         if (isHost) {
-            setTimeout(() => {
-                updateDoc(doc(db, 'rooms', currentRoomId), { status: 'playing' });
-            }, 2000);
+            // Check if questions arrived before starting
+            let checkInterval = setInterval(async () => {
+                const snap = await getDoc(doc(db, 'rooms', currentRoomId));
+                if (snap.exists() && snap.data().questions) {
+                    clearInterval(checkInterval);
+                    setTimeout(() => {
+                        updateDoc(doc(db, 'rooms', currentRoomId), { status: 'playing' });
+                    }, 500);
+                }
+            }, 1000);
         }
-    }, 4000); // 3s spin + 1s highlight
+    }, 4500); // 3s spin + grace period
 }
 
 async function prepareGame(categoryId) {
