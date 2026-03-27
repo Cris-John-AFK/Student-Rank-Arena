@@ -534,7 +534,7 @@ async function processEloUpdate(myScore, oppScore, roomData) {
         try {
             const { updateEloAfterMatch } = await import('./firebase.js');
             const won = myScore > oppScore;
-            const result = await updateEloAfterMatch(auth.currentUser.email, oppEmail, won);
+            const result = await updateEloAfterMatch(auth.currentUser.email, oppEmail, won, myScore, oppScore);
             
             if (result) {
                 const resultsScreen = document.getElementById('versus-result');

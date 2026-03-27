@@ -160,25 +160,31 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     }
 }
 
-export async function updateEloAfterMatch(myEmail, opponentEmail, won) {
+export async function updateEloAfterMatch(myEmail, opponentEmail, won, myScore, oppScore) {
     if (!isFirebaseConfigured || !myEmail) return;
     try {
         const myRef = doc(db, 'users', myEmail);
-        const oppRef = doc(db, 'users', opponentEmail);
-        const [mySnap, oppSnap] = await Promise.all([getDoc(myRef), getDoc(oppRef)]);
+        const [mySnap] = await Promise.all([getDoc(myRef)]);
         
         const myElo = mySnap.exists() ? (mySnap.data().elo || 500) : 500;
-        const oppElo = oppSnap.exists() ? (oppSnap.data().elo || 500) : 500;
         
-        const K = 32;
-        const expected = 1 / (1 + Math.pow(10, (oppElo - myElo) / 400));
-        const actual = won ? 1 : 0;
-        const change = Math.round(K * (actual - expected));
+        let change = 0;
+        if (won) {
+            // Victory: +10 base + 2 per correct question
+            change = 10 + (myScore * 2); 
+        } else {
+            // Defeat: -10 base - 2 per wrong question (out of 10)
+            const wrongCount = Math.max(0, 10 - myScore);
+            change = -(10 + (wrongCount * 2));
+        }
+
+        // Draw case
+        if (myScore === oppScore) change = 0;
         
         const newElo = Math.max(10, myElo + change);
         await updateDoc(myRef, { elo: newElo });
 
-        // 🧠 Also sync to results collection for leaderboard
+        // Sync to results collection for leaderboard
         const resultsRef = doc(db, 'results', myEmail);
         await updateDoc(resultsRef, { elo: newElo });
 
