@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp, startAt, endAt } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
@@ -85,7 +85,7 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     const user = getCurrentUser();
     const email = user?.email || null;
     
-    // 🛡️ CANONICAL ID FIX: Always prioritize email over UID to preserve legacy progress
+    // Canonical ID policy
     const currentUserId = email || auth?.currentUser?.uid || `guest_${Date.now()}`;
     let displayName = user?.displayName || guestNickname || "Anonymous Student";
     if (!displayName && email) displayName = email.split('@')[0];
@@ -133,12 +133,13 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     }
     
     resultData.isPremium = !!(await checkPremiumStatus(email));
+    // 🧠 Sync Elo to results collection for leaderboard sorting
+    resultData.elo = eloToReturn;
 
     if (isFirebaseConfigured) {
         try {
             if (!email) await signInAnonymously(auth);
             const leaderboardRef = doc(db, 'results', currentUserId);
-            // 🔄 Preserve achievements on save
             const saveData = { ...resultData, earnedScores: arrayUnion(score) };
             await setDoc(leaderboardRef, saveData, { merge: true });
             
@@ -176,6 +177,11 @@ export async function updateEloAfterMatch(myEmail, opponentEmail, won) {
         
         const newElo = Math.max(10, myElo + change);
         await updateDoc(myRef, { elo: newElo });
+
+        // 🧠 Also sync to results collection for leaderboard
+        const resultsRef = doc(db, 'results', myEmail);
+        await updateDoc(resultsRef, { elo: newElo });
+
         return { newElo, change };
     } catch(e) { console.error("Elo update fail", e); }
 }
@@ -191,39 +197,59 @@ export async function getUserProfileData(email) {
 export async function fetchUserResults(userId) {
     if (!userId || !isFirebaseConfigured) return [];
     try {
-        // userId could be email or UID hash
-        const resultsRef = collection(db, 'results');
         const docRef = doc(db, 'results', userId);
         const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) return [{ id: docSnap.id, ...docSnap.data() }];
         
-        if (docSnap.exists()) {
-            return [{ id: docSnap.id, ...docSnap.data() }];
-        }
-        
+        const resultsRef = collection(db, 'results');
         const q = query(resultsRef, where('userId', '==', userId));
         const querySnapshot = await getDocs(q);
         const myData = [];
-        querySnapshot.forEach((doc) => {
-             myData.push({ id: doc.id, ...doc.data() });
-        });
+        querySnapshot.forEach((doc) => { myData.push({ id: doc.id, ...doc.data() }); });
         return myData.sort((a, b) => new Date(b.date) - new Date(a.date));
     } catch (e) { console.error("User results fetch failed:", e); return []; }
 }
 
-export async function fetchLeaderboard(limitCount = 100) {
+export async function fetchLeaderboard(orderByField = 'score', limitCount = 50) {
     if (!isFirebaseConfigured) return null;
     try {
         const resultsRef = collection(db, 'results');
-        const q = query(resultsRef, orderBy('score', 'desc'), limit(limitCount));
+        const q = query(resultsRef, orderBy(orderByField, 'desc'), limit(limitCount));
         const querySnapshot = await getDocs(q);
         const leaderboardData = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             const actualIdInDoc = data.userId || null;
-            // 🛡️ Filter duplicates: if current doc.id is a hash but doc has an email userId, skip the hash
             if (actualIdInDoc && actualIdInDoc.includes('@') && doc.id !== actualIdInDoc) return;
             leaderboardData.push({ id: doc.id, ...data });
         });
         return leaderboardData;
     } catch (e) { console.error("Leaderboard fetch failed:", e); return []; }
+}
+
+/**
+ * 🏆 Fetches a slice of the leaderboard around a given value.
+ */
+export async function fetchLeaderboardAround(field, value, cushion = 5) {
+    if (!isFirebaseConfigured) return [];
+    try {
+        const resultsRef = collection(db, 'results');
+        
+        // 1. Get people higher/equal
+        const qHigh = query(resultsRef, where(field, '>=', value), orderBy(field, 'asc'), limit(cushion + 1));
+        // 2. Get people lower
+        const qLow = query(resultsRef, where(field, '<', value), orderBy(field, 'desc'), limit(cushion));
+
+        const [snapHigh, snapLow] = await Promise.all([getDocs(qHigh), getDocs(qLow)]);
+        
+        const highData = [];
+        snapHigh.forEach(doc => highData.push({ id: doc.id, ...doc.data() }));
+        // qHigh is ASC (lowest first), so reverse to get highest first for the board
+        highData.reverse();
+
+        const lowData = [];
+        snapLow.forEach(doc => lowData.push({ id: doc.id, ...doc.data() }));
+
+        return [...highData, ...lowData];
+    } catch (e) { console.error("Around-me fetch failed:", e); return []; }
 }

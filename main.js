@@ -210,98 +210,100 @@ function handleLogout() {
 // ====== Leaderboard ======
 function openLeaderboard() {
     showScreen('leaderboard');
-    renderLeaderboard('top');
+    renderLeaderboard('top'); // Default to 'top' tab
 }
 
 async function renderLeaderboard(tab) {
     const list = document.getElementById('leaderboard-list');
     const teaser = document.getElementById('lb-premium-teaser');
-    
     list.innerHTML = '<div class="lb-loading">Fetching real rankings...</div>';
 
-    // Fetch up to 20 real results
-    let data = await fetchLeaderboard(30);
+    const myId = currentUser?.email || localStorage.getItem('myArenaId');
+    let displayData = [];
+
+    if (tab === 'elo') {
+        // 🧠 ELO AROUND ME LOGIC
+        const profile = await getUserProfileData(currentUser?.email);
+        const myElo = profile?.elo || 500;
+        
+        // Fetch Top 3 + Around User
+        const [top3, aroundMe] = await Promise.all([
+            fetchLeaderboard('elo', 3),
+            fetchLeaderboardAround('elo', myElo, 3)
+        ]);
+
+        // Merge & Deduplicate
+        const merged = [...top3];
+        aroundMe.forEach(d => {
+            if (!merged.find(m => m.id === d.id)) merged.push(d);
+        });
+        
+        // Sort merged by Elo desc
+        displayData = merged.sort((a, b) => b.elo - a.elo);
+    } else {
+        // TOP SCORE LOGIC
+        displayData = await fetchLeaderboard('score', 30);
+        if (tab === 'chaos') displayData.sort((a, b) => a.score - b.score);
+    }
     
-    if (!data || data.length === 0) {
-        list.innerHTML = '<div class="lb-loading">No results yet. Be the first! 🏆</div>';
+    if (!displayData || displayData.length === 0) {
+        list.innerHTML = '<div class="lb-loading">No results yet. Let\'s go! 🏆</div>';
         return;
     }
 
-    // Filter by tab
-    if (tab === 'chaos') {
-        // Chaos tier (Opposite sorting: Lowest scores win!)
-        data = data.sort((a, b) => a.score - b.score);
-    } else {
-        // Top Players (Highest scores win!)
-        data = data.sort((a, b) => b.score - a.score);
-    }
-
-    // 🏆 Leaderboard Deduplication: 
-    // If a user has multiple records (historical), only keep their BEST one.
+    // Deduplicate logic
     const seen = new Set();
-    data = data.filter(d => {
-        if (!d.userId || d.userId.startsWith('guest_')) return true; // Guests can stay multiple
-        if (seen.has(d.userId)) return false;
-        seen.add(d.userId);
+    displayData = displayData.filter(d => {
+        const key = d.userId || d.id;
+        if (seen.has(key)) return false;
+        seen.add(key);
         return true;
     });
 
-    if (data.length === 0) {
-        list.innerHTML = `<div class="lb-loading">No one in the ${tab === 'chaos' ? 'Chaos' : 'Top'} tier yet. 🎯</div>`;
-        return;
-    }
-
     list.innerHTML = '';
-    const visibleCount = 20;
-    const topData = data.slice(0, visibleCount);
     
-    const myId = currentUser?.email || localStorage.getItem('myArenaId');
-    const myIndex = data.findIndex(d => d.userId === myId);
-
+    // Custom row creator that shows Elo or Score based on tab
     const createRowHTML = (entry, index, isMe) => {
-        const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
-        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
-        let nameDisplay = entry.displayName;
+        const isEloTab = tab === 'elo';
+        const rankValue = isEloTab ? (entry.elo || 500) : `${entry.score}/100`;
+        const medal = (index < 3 && !isEloTab) ? (index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉') : `#?`;
+        
+        let nameDisplay = entry.displayName || "Unknown";
         if (isMe) nameDisplay += " (You)";
 
-        // Developer Achievements
         const isCreator = entry.achievement?.includes('The Creator') || entry.type?.includes('The Creator');
         const isExtreme = entry.achievement?.includes('The Extreme') || entry.type?.includes('The Extreme');
         const isVoid = entry.achievement?.includes('The Void Master') || entry.type?.includes('The Void Master');
         
-        let devClass = '';
-        if (isCreator) devClass = 'creator-border';
-        else if (isExtreme) devClass = 'extreme-border';
-        else if (isVoid) devClass = 'void-border';
-
+        let devClass = isCreator ? 'creator-border' : isExtreme ? 'extreme-border' : isVoid ? 'void-border' : '';
         let displayType = (entry.score !== undefined && studentTypesDict[entry.score])
             ? studentTypesDict[entry.score].type
             : (entry.type || '—');
 
         return `
             <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''} ${devClass}" 
-                 style="cursor:pointer;" 
                  onclick="window._openPublicProfile(${JSON.stringify(entry).replace(/"/g, '&quot;')})">
-                <div class="lb-rank ${rankClass}">${medal}</div>
+                <div class="lb-rank">${medal}</div>
                 <div class="lb-info">
                     <div class="lb-name">${nameDisplay} ${entry.isPremium ? '⭐' : ''}</div>
-                    <div class="lb-type">${entry.achievement ? `<span class="achievement-pill">${entry.achievement}</span> ` : ''}${displayType}</div>
+                    <div class="lb-type">${isEloTab ? '🧠 Elo Knowledge' : displayType}</div>
                 </div>
-                <div class="lb-score">${entry.score}/100</div>
+                <div class="lb-score" style="color:${isEloTab?'var(--accent)':'white'};">${rankValue}</div>
             </div>
         `;
     };
 
-    let html = topData.map((entry, i) => createRowHTML(entry, i, entry.userId === myId)).join('');
-
-    // If the user's rank is outside the top 20, show ... and then their rank
-    if (myIndex >= visibleCount) {
-        html += `<div style="text-align:center; color:var(--text-muted); padding: 10px;">•••</div>`;
-        html += createRowHTML(data[myIndex], myIndex, true);
-    }
+    let html = '';
+    displayData.forEach((entry, i) => {
+        // Add a spacer if there's a gap between top 3 and the rest in Elo tab
+        if (tab === 'elo' && i === 3 && displayData.length > 3) {
+            html += `<div style="text-align:center; color:var(--text-muted); font-size: 0.8rem; margin: 10px 0;">••• SLICE AROUND YOU •••</div>`;
+        }
+        html += createRowHTML(entry, i, (entry.userId === myId || entry.id === myId));
+    });
 
     list.innerHTML = html;
-    teaser.style.display = 'none'; // Replaced premium teaser with 20-limit for all
+    teaser.style.display = 'none';
 }
 
 // ====== Achievements Section Renderer ======
