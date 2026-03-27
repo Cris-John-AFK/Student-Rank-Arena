@@ -317,3 +317,27 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
     border: 3px solid #4c00ff !important;
     box-shadow: 0 0 30px rgba(76, 0, 255, 0.8), inset 0 0 20px rgba(76, 0, 255, 0.3) !important;
 }
+
+/* 🏅 Achievement pill on leaderboard rows */
+.achievement-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color: #000;
+    vertical-align: middle;
+    margin-right: 4px;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+/* Clickable leaderboard rows */
+.lb-row {
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.lb-row:hover {
+    transform: translateX(4px) scale(1.01);
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+}

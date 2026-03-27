@@ -1,6 +1,6 @@
 import { questions } from './questions.js';
 import { studentTypesDict } from './studentTypes.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, db } from './firebase.js';
 
 // ====== DOM Screens ======
 const screens = {
@@ -133,6 +133,9 @@ function setupEventListeners() {
 
     // Guest Modal setup
     modals['guest'] = document.getElementById('guest-modal');
+    modals['edit-profile'] = document.getElementById('edit-profile-modal');
+    modals['public-profile'] = document.getElementById('public-profile-modal');
+
     document.querySelector('.close-guest-btn').addEventListener('click', () => {
         modals['guest'].classList.remove('visible');
     });
@@ -144,6 +147,14 @@ function setupEventListeners() {
         modals['guest'].classList.remove('visible');
         await completeSaveResult(guestNick);
     });
+
+    // Edit Profile Modal
+    document.getElementById('edit-profile-btn').addEventListener('click', openEditProfileModal);
+    document.getElementById('close-edit-btn').addEventListener('click', () => modals['edit-profile'].classList.remove('visible'));
+    document.getElementById('edit-profile-form').addEventListener('submit', handleSaveProfileEdit);
+
+    // Public Profile Modal
+    document.getElementById('close-public-btn').addEventListener('click', () => modals['public-profile'].classList.remove('visible'));
 }
 
 // ====== UI Helpers ======
@@ -261,11 +272,13 @@ async function renderLeaderboard(tab) {
         }
 
         return `
-            <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''} ${devClass}">
+            <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''} ${devClass}" 
+                 style="cursor:pointer;" 
+                 onclick="window._openPublicProfile(${JSON.stringify(entry).replace(/"/g, '&quot;')})">
                 <div class="lb-rank ${rankClass}">${medal}</div>
                 <div class="lb-info">
                     <div class="lb-name">${nameDisplay} ${entry.isPremium ? '⭐' : ''}</div>
-                    <div class="lb-type">${displayType}</div>
+                    <div class="lb-type">${entry.achievement ? `<span class="achievement-pill">${entry.achievement}</span> ` : ''}${entry.type}</div>
                 </div>
                 <div class="lb-score">${entry.score}/100</div>
             </div>
@@ -284,13 +297,27 @@ async function renderLeaderboard(tab) {
     teaser.style.display = 'none'; // Replaced premium teaser with 20-limit for all
 }
 
+function renderAchievementBadges(containerId, achievement) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    if (!achievement) return;
+    
+    let style = '';
+    if (achievement.includes('The Creator')) style = 'background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; text-shadow: none; box-shadow: 0 0 20px rgba(255,215,0,0.8);';
+    else if (achievement.includes('The Extreme')) style = 'background: linear-gradient(135deg, #ff0000, #00ff00, #0000ff); color: white; animation: rgb-border 3s linear infinite; background-size: 200%;';
+    else if (achievement.includes('The Void Master')) style = 'background: linear-gradient(135deg, #4c00ff, #1a0080); color: white; box-shadow: 0 0 20px rgba(76,0,255,0.9);';
+    
+    container.innerHTML = `<span style="display:inline-block; padding: 5px 16px; border-radius: 99px; font-size: 1rem; font-weight: 900; letter-spacing: 0.5px; ${style}">${achievement}</span>`;
+}
+
 function updateProfileStatsUI(score, rank, type, achievement) {
     document.getElementById('prof-best-score').textContent = score === 'No quiz yet' ? score : `${score}/100`;
     document.getElementById('prof-best-rank').textContent = rank === '—' ? rank : `Top ${rank}%`;
+    document.getElementById('prof-type').textContent = type || '—';
     
-    let displayType = type;
-    if (achievement) displayType += ` | ${achievement}`;
-    document.getElementById('prof-type').textContent = displayType;
+    // Render achievement badge on top
+    renderAchievementBadges('my-achievements', achievement);
     
     const panel = document.getElementById('profile').querySelector('.glass-panel');
     panel.classList.remove('creator-border', 'extreme-border', 'void-border');
@@ -299,6 +326,99 @@ function updateProfileStatsUI(score, rank, type, achievement) {
     if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
     else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
     else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
+}
+
+// ====== Public Profile Viewer ======
+window._openPublicProfile = function(entry) {
+    const modal = document.getElementById('public-profile-modal');
+    document.getElementById('public-name').textContent = entry.displayName || 'Unknown';
+    document.getElementById('public-score').textContent = entry.score !== undefined ? `${entry.score}/100` : '—';
+    document.getElementById('public-rank').textContent = entry.rank ? `Top ${entry.rank}%` : '—';
+    document.getElementById('public-type').textContent = entry.type || '—';
+    
+    const badge = document.getElementById('public-badge');
+    badge.textContent = entry.isPremium ? '⭐ Premium' : 'Free';
+    badge.style.background = entry.isPremium ? 'linear-gradient(135deg, #6366f1, #ec4899)' : '';
+    badge.style.color = entry.isPremium ? 'white' : '';
+    
+    // Render their achievement badge at top
+    renderAchievementBadges('public-achievements', entry.achievement);
+    
+    // Apply glow class to the modal panel
+    const panel = modal.querySelector('.glass-panel');
+    panel.classList.remove('creator-border', 'extreme-border', 'void-border');
+    const combinedStr = (entry.type || '') + (entry.achievement || '');
+    if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
+    else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
+    else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
+    
+    modal.classList.add('visible');
+};
+
+// ====== Edit Profile ======
+async function openEditProfileModal() {
+    if (!currentUser) return;
+    const modal = document.getElementById('edit-profile-modal');
+    
+    // Pre-fill name
+    document.getElementById('edit-name-input').value = currentUser.displayName || currentUser.email?.split('@')[0] || '';
+    
+    // Load past titles
+    const select = document.getElementById('edit-title-select');
+    select.innerHTML = '<option value="">Loading...</option>';
+    
+    const results = await fetchUserResults(currentUser.email || currentUser.uid);
+    if (results.length > 0) {
+        const uniqueTitles = [...new Set(results.map(r => r.type).filter(Boolean))];
+        select.innerHTML = uniqueTitles.map(t => `<option value="${t}">${t}</option>`).join('');
+    } else {
+        select.innerHTML = '<option value="">No past titles yet</option>';
+    }
+    
+    modal.classList.add('visible');
+}
+
+async function handleSaveProfileEdit(e) {
+    e.preventDefault();
+    if (!currentUser) return;
+    
+    const newName = document.getElementById('edit-name-input').value.trim();
+    const newTitle = document.getElementById('edit-title-select').value;
+    
+    if (!newName) { showToast('Name cannot be empty!'); return; }
+    
+    const btn = document.getElementById('save-profile-edit-btn');
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+    
+    try {
+        // Update Firebase Auth display name
+        const { updateProfile } = await import('firebase/auth');
+        const { auth } = await import('./firebase.js');
+        await updateProfile(auth.currentUser, { displayName: newName });
+        
+        // Update in Firestore results document - preserve existing 'achievement' field
+        if (isFirebaseConfigured && db) {
+            const { doc, updateDoc } = await import('firebase/firestore');
+            const userId = currentUser.email || currentUser.uid;
+            const docRef = doc(db, 'results', userId);
+            const updateData = { displayName: newName };
+            if (newTitle) updateData.type = newTitle;
+            await updateDoc(docRef, updateData);
+        }
+        
+        // Refresh UI
+        document.getElementById('profile-name').textContent = newName;
+        updateLandingUI();
+        modals['edit-profile'].classList.remove('visible');
+        showToast('✅ Profile updated!');
+    } catch (err) {
+        console.error(err);
+        showToast('❌ Update failed. Try again.');
+    } finally {
+        btn.textContent = 'Save Changes';
+        btn.disabled = false;
+    }
 }
 
 // ====== Profile ======
