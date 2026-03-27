@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp, startAt, endAt } from "firebase/firestore";
+import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp, startAt, endAt, getCountFromServer } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
@@ -133,7 +133,7 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     }
     
     resultData.isPremium = !!(await checkPremiumStatus(email));
-    // 🧠 Sync Elo to results collection for leaderboard sorting
+    // Sync Elo to results collection for leaderboard sorting
     resultData.elo = eloToReturn;
 
     if (isFirebaseConfigured) {
@@ -170,15 +170,12 @@ export async function updateEloAfterMatch(myEmail, opponentEmail, won, myScore, 
         
         let change = 0;
         if (won) {
-            // Victory: +10 base + 2 per correct question
             change = 10 + (myScore * 2); 
         } else {
-            // Defeat: -10 base - 2 per wrong question (out of 10)
             const wrongCount = Math.max(0, 10 - myScore);
             change = -(10 + (wrongCount * 2));
         }
 
-        // Draw case
         if (myScore === oppScore) change = 0;
         
         const newElo = Math.max(10, myElo + change);
@@ -236,21 +233,16 @@ export async function fetchLeaderboard(orderByField = 'score', limitCount = 50) 
 /**
  * 🏆 Fetches a slice of the leaderboard around a given value.
  */
-export async function fetchLeaderboardAround(field, value, cushion = 5) {
+export async function fetchLeaderboardAround(field, value, cushion = 3) {
     if (!isFirebaseConfigured) return [];
     try {
         const resultsRef = collection(db, 'results');
-        
-        // 1. Get people higher/equal
         const qHigh = query(resultsRef, where(field, '>=', value), orderBy(field, 'asc'), limit(cushion + 1));
-        // 2. Get people lower
         const qLow = query(resultsRef, where(field, '<', value), orderBy(field, 'desc'), limit(cushion));
 
         const [snapHigh, snapLow] = await Promise.all([getDocs(qHigh), getDocs(qLow)]);
-        
         const highData = [];
         snapHigh.forEach(doc => highData.push({ id: doc.id, ...doc.data() }));
-        // qHigh is ASC (lowest first), so reverse to get highest first for the board
         highData.reverse();
 
         const lowData = [];
@@ -258,4 +250,17 @@ export async function fetchLeaderboardAround(field, value, cushion = 5) {
 
         return [...highData, ...lowData];
     } catch (e) { console.error("Around-me fetch failed:", e); return []; }
+}
+
+/**
+ * 🏆 Calculates the global Elo rank of a user
+ */
+export async function getUserEloRank(myElo) {
+    if (!isFirebaseConfigured) return null;
+    try {
+        const resultsRef = collection(db, 'results');
+        const q = query(resultsRef, where('elo', '>', myElo));
+        const snapshot = await getCountFromServer(q);
+        return (snapshot.data().count || 0) + 1;
+    } catch (e) { console.error("Rank fetch failed:", e); return null; }
 }

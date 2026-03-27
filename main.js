@@ -1,6 +1,6 @@
 import { questions } from './questions.js';
 import { studentTypesDict } from './studentTypes.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, fetchLeaderboardAround, db } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, fetchLeaderboardAround, getUserEloRank, db } from './firebase.js';
 import { initVersus } from './versus.js';
 
 // ====== DOM Screens ======
@@ -222,52 +222,46 @@ async function renderLeaderboard(tab) {
     let displayData = [];
 
     if (tab === 'elo') {
-        // 🧠 ELO AROUND ME LOGIC
         const profile = await getUserProfileData(currentUser?.email);
         const myElo = profile?.elo || 500;
         
-        // Fetch Top 3 + Around User
-        const [top3, aroundMe] = await Promise.all([
+        const [top3, aroundMe, myRank] = await Promise.all([
             fetchLeaderboard('elo', 3),
-            fetchLeaderboardAround('elo', myElo, 3)
+            fetchLeaderboardAround('elo', myElo, 3),
+            getUserEloRank(myElo)
         ]);
 
-        // Merge & Deduplicate
         const merged = [...top3];
         aroundMe.forEach(d => {
             if (!merged.find(m => m.id === d.id)) merged.push(d);
         });
-        
-        // Sort merged by Elo desc
         displayData = merged.sort((a, b) => b.elo - a.elo);
+
+        // Store global rank for the "Around Me" slice calculation
+        const myIndex = displayData.findIndex(d => (d.userId === myId || d.id === myId));
+        if (myIndex !== -1 && myRank) {
+            displayData.forEach((d, i) => {
+                d.absoluteRank = myRank + (i - myIndex);
+            });
+        }
     } else {
-        // TOP SCORE LOGIC
         displayData = await fetchLeaderboard('score', 30);
-        if (tab === 'chaos') displayData.sort((a, b) => a.score - b.score);
     }
     
-    if (!displayData || displayData.length === 0) {
-        list.innerHTML = '<div class="lb-loading">No results yet. Let\'s go! 🏆</div>';
-        return;
-    }
-
-    // Deduplicate logic
-    const seen = new Set();
-    displayData = displayData.filter(d => {
-        const key = d.userId || d.id;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
-
     list.innerHTML = '';
     
-    // Custom row creator that shows Elo or Score based on tab
+    // Custom row creator
     const createRowHTML = (entry, index, isMe) => {
         const isEloTab = tab === 'elo';
         const rankValue = isEloTab ? (entry.elo || 500) : `${entry.score}/100`;
-        const medal = (index < 3 && !isEloTab) ? (index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉') : `#?`;
         
+        let medal = `#${index + 1}`;
+        if (isEloTab) {
+            medal = entry.absoluteRank ? `#${entry.absoluteRank}` : `#?`;
+        } else if (index < 3) {
+            medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+        }
+
         let nameDisplay = entry.displayName || "Unknown";
         if (isMe) nameDisplay += " (You)";
 
