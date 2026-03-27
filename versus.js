@@ -1,5 +1,5 @@
 import { db, auth } from './firebase.js';
-import { collection, doc, setDoc, updateDoc, onSnapshot, getDoc, query, where, getDocs, serverTimestamp, deleteDoc } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc, onSnapshot, getDoc, query, where, getDocs, serverTimestamp, deleteDoc, deleteField } from "firebase/firestore";
 
 let currentRoomId = null;
 let roomListener = null;
@@ -199,6 +199,13 @@ function listenToRoom(roomId) {
         if (!snap.exists()) return;
         const data = snap.data();
         
+        // 🚨 DISCONNECT CHECK: If opponent leaves or room is deleted
+        if (vsStatus !== 'idle' && (!data.players[myPlayerId] || data.playerCount < 2 && vsStatus === 'playing')) {
+            alert("Opponent has disconnected or left the arena! 💨");
+            leaveRoom();
+            return;
+        }
+
         // Lobby Sync
         if (data.status === 'lobby') {
             const playerIds = Object.keys(data.players);
@@ -309,19 +316,16 @@ async function prepareGame(categoryId) {
     try {
         console.log("🛠️ Preparing 10 questions for category:", categoryId);
         
-        const fetchLevel = (diff, count) => 
-            fetch(`https://opentdb.com/api.php?amount=${count}&category=${categoryId}&difficulty=${diff}&type=multiple`)
-            .then(r => r.json());
+        // 🔥 FIX: 429 Rate Limit (Open Trivia DB only allows 1 request per 5 seconds)
+        // We now make ONE single call for 10 questions instead of 3 parallel ones.
+        const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${categoryId}&type=multiple`);
+        const json = await res.json();
+        
+        if (json.response_code !== 0) {
+            throw new Error(`API returned code ${json.response_code}`);
+        }
 
-        // 1-5 Easy, 6-7 Medium, 8-10 Hard
-        const [easy, med, hard] = await Promise.all([
-            fetchLevel('easy', 5),
-            fetchLevel('medium', 2),
-            fetchLevel('hard', 3)
-        ]);
-
-        const allRaw = [...easy.results, ...med.results, ...hard.results];
-        const questions = allRaw.map(q => ({
+        const questions = json.results.map(q => ({
             category: q.category,
             text: q.question,
             correct: q.correct_answer,
@@ -334,7 +338,8 @@ async function prepareGame(categoryId) {
         });
     } catch (e) {
         console.error("Prep failed", e);
-        leaveRoom();
+        // Retry once after 2 seconds if it's a 429 or fetch error
+        setTimeout(() => prepareGame(categoryId), 2500);
     }
 }
 
@@ -450,9 +455,28 @@ function finishVsGame(data) {
 
 async function leaveRoom() {
     if (roomListener) roomListener();
-    if (isHost && currentRoomId) {
-        await deleteDoc(doc(db, 'rooms', currentRoomId)).catch(() => {});
+    if (currentRoomId) {
+        try {
+            const roomRef = doc(db, 'rooms', currentRoomId);
+            const snap = await getDoc(roomRef);
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.playerCount > 1) {
+                    // Just remove self if someone else is still there
+                    await updateDoc(roomRef, {
+                        [`players.${myPlayerId}`]: deleteField(),
+                        playerCount: 1,
+                        status: 'lobby',
+                        matchStatus: 'searching_random' // allow others to join back
+                    });
+                } else {
+                    // Delete entirely if last one out
+                    await deleteDoc(roomRef);
+                }
+            }
+        } catch(e) { console.error("Exit failed", e); }
     }
     vsStatus = 'idle';
+    currentRoomId = null;
     showVsScreen('landing');
 }
