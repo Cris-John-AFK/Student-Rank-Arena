@@ -78,14 +78,20 @@ async function startRandomMatchmaking() {
     document.getElementById('p2-name').textContent = 'Waiting...';
 
     // Look for existing 'random' room with 1 player
-    const roomsRef = collection(db, 'rooms');
-    const q = query(roomsRef, where('type', '==', 'random'), where('status', '==', 'lobby'), where('playerCount', '==', 1));
-    const snapshot = await getDocs(q);
+    try {
+        const roomsRef = collection(db, 'rooms');
+        const q = query(roomsRef, where('type', '==', 'random'), where('status', '==', 'lobby'), where('playerCount', '==', 1));
+        const snapshot = await getDocs(q);
 
-    if (!snapshot.empty) {
-        joinRoom(snapshot.docs[0].id);
-    } else {
-        createRoom('random');
+        if (!snapshot.empty) {
+            joinRoom(snapshot.docs[0].id);
+        } else {
+            createRoom('random');
+        }
+    } catch (e) {
+        console.error("Matchmaking error:", e);
+        alert("Arena Error: Make sure your Firestore Rules allow 'rooms' collection access!");
+        showVsScreen('landing');
     }
 }
 
@@ -116,15 +122,21 @@ async function createRoom(type, customId = null) {
         currentQuestionIndex: -1 // Host signals start by setting to 0
     };
 
-    await setDoc(doc(db, 'rooms', roomId), initialData);
-    
-    if (type === 'private') {
-        document.getElementById('room-code-display').style.display = 'block';
-        document.getElementById('share-code').textContent = roomId;
-        document.getElementById('lobby-status').textContent = "Waiting for friend...";
-    }
+    try {
+        await setDoc(doc(db, 'rooms', roomId), initialData);
+        
+        if (type === 'private') {
+            document.getElementById('room-code-display').style.display = 'block';
+            document.getElementById('share-code').textContent = roomId;
+            document.getElementById('lobby-status').textContent = "Waiting for friend...";
+        }
 
-    listenToRoom(roomId);
+        listenToRoom(roomId);
+    } catch (e) {
+        console.error("Create Room Error:", e);
+        alert("Failed to create room. Check Firebase Rules!");
+        showVsScreen('landing');
+    }
 }
 
 async function joinRoom(roomId) {
