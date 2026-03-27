@@ -1,6 +1,6 @@
 import { questions } from './questions.js';
 import { studentTypesDict } from './studentTypes.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, fetchLeaderboardAround, getUserEloRank, db } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, fetchLeaderboardAround, getUserEloRank, getPersistentId, db } from './firebase.js';
 import { initVersus } from './versus.js';
 
 // ====== DOM Screens ======
@@ -238,6 +238,7 @@ async function renderLeaderboard(tab) {
         displayData = merged.sort((a, b) => b.elo - a.elo);
 
         // Store global rank for the "Around Me" slice calculation
+        const myId = getPersistentId();
         const myIndex = displayData.findIndex(d => (d.userId === myId || d.id === myId));
         if (myIndex !== -1 && myRank) {
             displayData.forEach((d, i) => {
@@ -366,10 +367,11 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
     const bRankEl = document.getElementById('profile-rank');
     
     if (eloEl) {
-        getUserProfileData(currentUser?.email).then(data => {
+        // Use persistent ID (Email or Guest Hash)
+        const myId = getPersistentId();
+        getUserProfileData(myId).then(data => {
             const elo = data?.elo || (typeof score === 'number' ? (score * 20) + 50 : 500);
             eloEl.textContent = elo;
-            // Also fetch world rank
             getUserEloRank(elo).then(wRank => {
                 if (wRankEl) wRankEl.textContent = `#${wRank}`;
             });
@@ -520,59 +522,45 @@ async function handleSaveProfileEdit(e) {
 
 // ====== Profile ======
 async function openProfile() {
-    if (!currentUser) { showModal('auth'); return; }
     showScreen('profile');
-
-    const name = currentUser.displayName || currentUser.email?.split('@')[0] || 'Student';
-    document.getElementById('profile-name').textContent = name;
-    document.getElementById('profile-email').textContent = currentUser.email || '';
+    
+    const myId = getPersistentId();
+    const isGuest = !myId.includes('@');
 
     // Clear stats while loading
-    const eloEl = document.getElementById('profile-elo');
-    const rankEl = document.getElementById('profile-rank');
-    if (eloEl) eloEl.textContent = '...';
-    if (rankEl) rankEl.textContent = '...';
+    document.getElementById('profile-elo').textContent = '...';
+    document.getElementById('profile-world-rank').textContent = '#...';
+    document.getElementById('profile-score').textContent = '...';
+    document.getElementById('profile-rank').textContent = '...';
     document.getElementById('prof-type').textContent = '...';
 
-    const badge = document.getElementById('profile-badge');
-    if (isPremiumUser) {
-        badge.textContent = '⭐ Premium';
-        badge.style.background = 'linear-gradient(135deg, #f59e0b, #f43f5e)';
-        badge.style.color = 'white';
-        badge.style.border = 'none';
-        document.getElementById('profile-upgrade-btn').style.display = 'none';
-    } else {
-        badge.textContent = 'Free';
-        badge.style.background = '';
-        badge.style.color = '';
-        badge.style.border = '1px solid var(--border)';
-        document.getElementById('profile-upgrade-btn').style.display = '';
-    }
-
-    // Load real results from Firestore
-    let myResults = [];
-    const canonicalId = currentUser.email || currentUser.uid;
-    if (isFirebaseConfigured) {
-        myResults = await fetchUserResults(canonicalId);
-    } else {
-        const results = JSON.parse(localStorage.getItem('studentResults') || '[]');
-        myResults = results.filter(r => r.userId === canonicalId);
-    }
-
-    if (myResults.length > 0) {
-        const best = myResults.reduce((a, b) => a.score > b.score ? a : b);
-        // Collect all earned scores — use earnedScores array if present, fall back to score field
-        const allEarnedScores = [...new Set(
-            myResults.flatMap(r => r.earnedScores || (r.score !== undefined ? [r.score] : []))
-        )];
-        updateProfileStatsUI(best.score, best.rank, best.type, best.achievement, allEarnedScores);
-    } else {
-        const userData = await getUserProfileData(currentUser.email);
-        if (userData && (userData.lastScore !== undefined)) {
-            updateProfileStatsUI(userData.lastScore, userData.lastRank, userData.lastType || '—', userData.achievement, [userData.lastScore]);
+    // Fetch live data (Registered or Guest)
+    const profile = await getUserProfileData(myId);
+    
+    if (profile) {
+        document.getElementById('profile-name').textContent = profile.displayName || (isGuest ? "Gladiator" : myId.split('@')[0]);
+        document.getElementById('profile-email').textContent = isGuest ? "Guest Participant" : myId;
+        
+        const badge = document.getElementById('profile-badge');
+        if (profile.isPremium) {
+            badge.textContent = '⭐ Premium';
+            badge.style.background = 'linear-gradient(135deg, #f59e0b, #f43f5e)';
+            badge.style.color = 'white';
         } else {
-            updateProfileStatsUI('No quiz yet', '—', '—', null, []);
+            badge.textContent = isGuest ? 'Guest Session' : 'Free Account';
+            badge.style.background = '';
+            badge.style.color = '';
         }
+
+        updateProfileStatsUI(
+            profile.bestScore || profile.score || profile.lastScore,
+            profile.rank || profile.lastRank,
+            profile.type || profile.lastType,
+            profile.achievement,
+            profile.earnedScores || (profile.score ? [profile.score] : [])
+        );
+    } else {
+        updateProfileStatsUI('No quiz yet', '—', '—', null, []);
     }
 
     // Refresh Premium Plan Display

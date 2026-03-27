@@ -1,5 +1,7 @@
-import { db, auth } from './firebase.js';
-import { collection, doc, setDoc, updateDoc, onSnapshot, getDoc, query, where, getDocs, serverTimestamp, deleteDoc, deleteField } from "firebase/firestore";
+import { questions } from './questions.js';
+import { db, auth, isFirebaseConfigured, getPersistentId } from './firebase.js';
+import { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, deleteDoc, serverTimestamp, query, where, limit, getDocs, deleteField } from "firebase/firestore";
+import { signInAnonymously } from "firebase/auth";
 
 let currentRoomId = null;
 let roomListener = null;
@@ -112,28 +114,27 @@ async function createPrivateRoom() {
 
 async function createRoom(type, customId = null) {
     isHost = true;
-    myPlayerId = auth.currentUser.uid;
+    myPlayerId = getPersistentId();
     const roomId = customId || Math.random().toString(36).substring(2, 10);
     currentRoomId = roomId;
 
     const initialData = {
-        type: type,
-        status: 'lobby',
-        matchStatus: type === 'random' ? 'searching_random' : 'private',
-        playerCount: 1,
         players: {
             [myPlayerId]: {
-                name: auth.currentUser.displayName || "Warrior",
+                name: auth.currentUser?.displayName || "Gladiator",
                 score: 0,
                 status: 'waiting',
-                avatar: '🎓'
+                avatar: '⚡'
             }
         },
         playerEmails: {
-            [myPlayerId]: auth.currentUser.email || null
+            [myPlayerId]: getPersistentId() // Store ID for Elo lookup later
         },
-        createdAt: serverTimestamp(),
-        currentQuestionIndex: -1 // Host signals start by setting to 0
+        playerCount: 1,
+        matchStatus: type === 'private' ? 'private' : 'searching_random',
+        status: 'lobby',
+        currentQuestionIndex: -1,
+        createdAt: serverTimestamp()
     };
 
     try {
@@ -161,7 +162,7 @@ async function createRoom(type, customId = null) {
 
 async function joinRoom(roomId) {
     isHost = false;
-    myPlayerId = auth.currentUser.uid;
+    myPlayerId = getPersistentId();
     currentRoomId = roomId;
 
     const roomRef = doc(db, 'rooms', roomId);
@@ -180,15 +181,15 @@ async function joinRoom(roomId) {
         return;
     }
 
-    // If joining, clear the searching status so no one else joins
+    // Initialize Joiner Data
     await updateDoc(roomRef, {
         [`players.${myPlayerId}`]: {
-            name: auth.currentUser.displayName || "Gladiator",
+            name: auth.currentUser?.displayName || "Gladiator",
             score: 0,
             status: 'waiting',
             avatar: '⚡'
         },
-        [`playerEmails.${myPlayerId}`]: auth.currentUser.email || null,
+        [`playerEmails.${myPlayerId}`]: getPersistentId(),
         playerCount: 2,
         matchStatus: 'full' 
     });
@@ -528,16 +529,16 @@ function finishVsGame(data) {
 async function processEloUpdate(myScore, oppScore, roomData) {
     if (!auth.currentUser?.email) return;
     
-    // Find opponent email
+    // Find opponent ID
     const pIds = Object.keys(roomData.players);
     const oppId = pIds.find(id => id !== myPlayerId);
-    const oppEmail = roomData.playerEmails?.[oppId];
+    const oppPersistentId = roomData.playerEmails?.[oppId];
 
-    if (oppEmail) {
+    if (oppPersistentId) {
         try {
             const { updateEloAfterMatch } = await import('./firebase.js');
             const won = myScore > oppScore;
-            const result = await updateEloAfterMatch(auth.currentUser.email, oppEmail, won, myScore, oppScore);
+            const result = await updateEloAfterMatch(getPersistentId(), oppPersistentId, won, myScore, oppScore);
             
             if (result) {
                 const resultsScreen = document.getElementById('versus-result');

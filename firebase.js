@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp, startAt, endAt, getCountFromServer } from "firebase/firestore";
+import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp, startAt, endAt, getCountFromServer, deleteField } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
@@ -21,6 +21,21 @@ if (isFirebaseConfigured) {
     db = getFirestore(app);
     auth = getAuth(app);
     setPersistence(auth, browserLocalPersistence).catch(console.error);
+}
+
+// 🛡️ Persistent Guest Identity Engine
+export function getPersistentId() {
+    const user = auth?.currentUser;
+    if (user?.email) return user.email;
+    if (user?.uid && !user.isAnonymous) return user.uid;
+    
+    // Check localStorage for a persistent guest ID
+    let gId = localStorage.getItem('arena_guest_id');
+    if (!gId) {
+        gId = 'guest_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('arena_guest_id', gId);
+    }
+    return gId;
 }
 
 export function onUserStateChange(callback) {
@@ -83,10 +98,9 @@ export async function checkPremiumStatus(email) {
 
 export async function saveUserResult(score, studentType, rankPercentile, guestNickname = null) {
     const user = getCurrentUser();
-    const email = user?.email || null;
+    const currentUserId = getPersistentId();
+    const email = (currentUserId.includes('@')) ? currentUserId : null;
     
-    // Canonical ID policy
-    const currentUserId = email || auth?.currentUser?.uid || `guest_${Date.now()}`;
     let displayName = user?.displayName || guestNickname || "Anonymous Student";
     if (!displayName && email) displayName = email.split('@')[0];
 
@@ -102,6 +116,7 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     let eloToReturn = 500;
     let isNewElo = false;
 
+    // Handle Registered Users
     if (isFirebaseConfigured && email) {
         try {
             const userRef = doc(db, 'users', email);
@@ -130,26 +145,31 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
             }
             await setDoc(userRef, updates, { merge: true });
         } catch (e) { console.error("Save error:", e); }
+    } else if (isFirebaseConfigured) {
+        // 🧪 Handle Guests Elo Placement
+        const resRef = doc(db, 'results', currentUserId);
+        const resSnap = await getDoc(resRef);
+        if (!resSnap.exists() || !resSnap.data().hasPlacement) {
+            eloToReturn = (score * 20) + 50;
+            isNewElo = true;
+            resultData.elo = eloToReturn;
+            resultData.hasPlacement = true;
+        } else {
+            eloToReturn = resSnap.data().elo || 500;
+        }
     }
     
     resultData.isPremium = !!(await checkPremiumStatus(email));
-    // Sync Elo to results collection for leaderboard sorting
     resultData.elo = eloToReturn;
 
     if (isFirebaseConfigured) {
         try {
-            if (!email) await signInAnonymously(auth);
+            if (!user) await signInAnonymously(auth);
             const leaderboardRef = doc(db, 'results', currentUserId);
             const saveData = { ...resultData, earnedScores: arrayUnion(score) };
             await setDoc(leaderboardRef, saveData, { merge: true });
             
-            return { 
-                success: true, 
-                displayName, 
-                userId: currentUserId, 
-                isNewElo: isNewElo, 
-                elo: eloToReturn 
-            };
+            return { success: true, displayName, userId: currentUserId, isNewElo, elo: eloToReturn };
         } catch (e) {
             console.error('Save failed:', e);
             return { success: false, error: e.message };
@@ -160,40 +180,54 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     }
 }
 
-export async function updateEloAfterMatch(myEmail, opponentEmail, won, myScore, oppScore) {
-    if (!isFirebaseConfigured || !myEmail) return;
+export async function updateEloAfterMatch(myId, opponentId, won, myScore, oppScore) {
+    if (!isFirebaseConfigured || !myId) return;
     try {
-        const myRef = doc(db, 'users', myEmail);
-        const [mySnap] = await Promise.all([getDoc(myRef)]);
-        
-        const myElo = mySnap.exists() ? (mySnap.data().elo || 500) : 500;
+        const isEmail = myId.includes('@');
+        const myResRef = doc(db, 'results', myId);
+        const myUserRef = isEmail ? doc(db, 'users', myId) : null;
+
+        // Fetch Elo (Try users first for registered, otherwise results for guest)
+        let myElo = 500;
+        if (myUserRef) {
+            const snap = await getDoc(myUserRef);
+            if (snap.exists()) myElo = snap.data().elo || 500;
+            else {
+                const resSnap = await getDoc(myResRef);
+                if (resSnap.exists()) myElo = resSnap.data().elo || 500;
+            }
+        } else {
+            const resSnap = await getDoc(myResRef);
+            if (resSnap.exists()) myElo = resSnap.data().elo || 500;
+        }
         
         let change = 0;
-        if (won) {
-            change = 10 + (myScore * 2); 
-        } else {
-            const wrongCount = Math.max(0, 10 - myScore);
-            change = -(10 + (wrongCount * 2));
-        }
-
         if (myScore === oppScore) change = 0;
-        
-        const newElo = Math.max(10, myElo + change);
-        await updateDoc(myRef, { elo: newElo });
+        else if (won) change = 10 + (myScore * 2); 
+        else change = -(10 + (Math.max(0, 10 - myScore) * 2));
 
-        // Sync to results collection for leaderboard
-        const resultsRef = doc(db, 'results', myEmail);
-        await updateDoc(resultsRef, { elo: newElo });
+        const newElo = Math.max(10, myElo + change);
+        
+        // Update both if applicable
+        const batchUpdates = [updateDoc(myResRef, { elo: newElo })];
+        if (myUserRef) batchUpdates.push(setDoc(myUserRef, { elo: newElo }, { merge: true }));
+        await Promise.all(batchUpdates);
 
         return { newElo, change };
     } catch(e) { console.error("Elo update fail", e); }
 }
 
-export async function getUserProfileData(email) {
-    if (!email || !isFirebaseConfigured) return null;
+export async function getUserProfileData(id) {
+    if (!id || !isFirebaseConfigured) return null;
     try {
-        const userDoc = await getDoc(doc(db, 'users', email));
-        return userDoc.exists() ? userDoc.data() : null;
+        // Try 'users' collection first (high priority for registered)
+        if (id.includes('@')) {
+            const userDoc = await getDoc(doc(db, 'users', id));
+            if (userDoc.exists()) return userDoc.data();
+        }
+        // Fallback or Guest path: Check 'results' collection
+        const resDoc = await getDoc(doc(db, 'results', id));
+        return resDoc.exists() ? resDoc.data() : null;
     } catch (e) { console.error("Profile fetch failed:", e); return null; }
 }
 
@@ -223,6 +257,7 @@ export async function fetchLeaderboard(orderByField = 'score', limitCount = 50) 
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             const actualIdInDoc = data.userId || null;
+            // Filter duplicates: skip the hash doc if an email doc exists
             if (actualIdInDoc && actualIdInDoc.includes('@') && doc.id !== actualIdInDoc) return;
             leaderboardData.push({ id: doc.id, ...data });
         });
@@ -230,9 +265,6 @@ export async function fetchLeaderboard(orderByField = 'score', limitCount = 50) 
     } catch (e) { console.error("Leaderboard fetch failed:", e); return []; }
 }
 
-/**
- * 🏆 Fetches a slice of the leaderboard around a given value.
- */
 export async function fetchLeaderboardAround(field, value, cushion = 3) {
     if (!isFirebaseConfigured) return [];
     try {
@@ -252,15 +284,12 @@ export async function fetchLeaderboardAround(field, value, cushion = 3) {
     } catch (e) { console.error("Around-me fetch failed:", e); return []; }
 }
 
-/**
- * 🏆 Calculates the global Elo rank of a user
- */
 export async function getUserEloRank(myElo) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured) return 0;
     try {
         const resultsRef = collection(db, 'results');
         const q = query(resultsRef, where('elo', '>', myElo));
         const snapshot = await getCountFromServer(q);
         return (snapshot.data().count || 0) + 1;
-    } catch (e) { console.error("Rank fetch failed:", e); return null; }
+    } catch (e) { console.error("Rank fetch failed:", e); return 0; }
 }
