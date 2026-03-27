@@ -251,14 +251,14 @@ function listenToRoom(roomId) {
             const oppData = data.players[oppId];
 
             document.getElementById('vs-my-name').textContent = "You";
-            document.getElementById('vs-my-score').textContent = myData.score;
+            document.getElementById('vs-my-score').textContent = myData.score || 0;
             if (oppData) {
                 document.getElementById('vs-opp-name').textContent = oppData.name;
-                document.getElementById('vs-opp-score').textContent = oppData.score;
-                vsOpponentScore = oppData.score;
+                document.getElementById('vs-opp-score').textContent = oppData.score || 0;
+                vsOpponentScore = oppData.score || 0;
             }
 
-            // Sync host transition
+            // Sync host transition (Force skip if stuck)
             if (isHost && vsStatus === 'playing' && currentRoomId) {
                 checkRoundOver(data);
             }
@@ -349,11 +349,12 @@ async function prepareGame(categoryId) {
 
         await updateDoc(doc(db, 'rooms', currentRoomId), {
             questions: questions,
-            currentQuestionIndex: 0
+            currentQuestionIndex: 0,
+            lastRoundStart: serverTimestamp() // Set first round start
         });
     } catch (e) {
         console.error("Prep failed", e);
-        // Retry once after 2 seconds if it's a 429 or fetch error
+        // Retry once after 2500ms
         setTimeout(() => prepareGame(categoryId), 2500);
     }
 }
@@ -415,6 +416,9 @@ async function submitVsAnswer(isCorrect) {
 
     try {
         const roomRef = doc(db, 'rooms', currentRoomId);
+        // Set local score too for instant UI feedback
+        document.getElementById('vs-my-score').textContent = vsScore;
+        
         await updateDoc(roomRef, {
             [`players.${myPlayerId}.score`]: vsScore,
             [`players.${myPlayerId}.status`]: 'answered'
@@ -428,8 +432,15 @@ function checkRoundOver(data) {
     if (!currentRoomId) return;
     const pIds = Object.keys(data.players);
     const allAnswered = pIds.every(id => data.players[id].status === 'answered');
+    
+    // 🔥 ROUND GUARD: If 7 seconds passed since round start, force next (anti-hang)
+    let timedOut = false;
+    if (data.lastRoundStart) {
+        const startTime = data.lastRoundStart.toMillis ? data.lastRoundStart.toMillis() : Date.now();
+        if (Date.now() - startTime > 7500) timedOut = true; // 5s quiz + 2.5s buffer
+    }
 
-    if (allAnswered) {
+    if (allAnswered || timedOut) {
         const nextIdx = data.currentQuestionIndex + 1;
         if (nextIdx < 10) {
             setTimeout(async () => {
@@ -437,6 +448,7 @@ function checkRoundOver(data) {
                 try {
                     await updateDoc(doc(db, 'rooms', currentRoomId), {
                         currentQuestionIndex: nextIdx,
+                        lastRoundStart: serverTimestamp(), // Update for next round
                         'players': Object.fromEntries(pIds.map(id => [id, { ...data.players[id], status: 'waiting' }]))
                     });
                 } catch(e) {}
