@@ -149,7 +149,11 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
             
             // 🔄 ALWAYS UPDATE: We want the LATEST quiz attempt to be the user's rank. 
             // This allows users to drop into the Chaos tier if they retake the quiz!
-            await setDoc(leaderboardRef, resultData, { merge: true });
+            if (email) {
+                await setDoc(leaderboardRef, resultData, { merge: true });
+            } else {
+                await setDoc(leaderboardRef, resultData);
+            }
 
             // If logged in, ALSO update their permanent user profile document
             if (email) {

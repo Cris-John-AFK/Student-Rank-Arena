@@ -129,6 +129,20 @@ function setupEventListeners() {
             renderLeaderboard(lbCurrentTab);
         });
     });
+
+    // Guest Modal setup
+    modals['guest'] = document.getElementById('guest-modal');
+    document.querySelector('.close-guest-btn').addEventListener('click', () => {
+        modals['guest'].classList.remove('visible');
+    });
+    document.getElementById('guest-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        let guestNick = document.getElementById('guest-name-input').value.trim();
+        if (!guestNick) guestNick = `Guest-${Math.floor(1000 + Math.random() * 9000)}`;
+        
+        modals['guest'].classList.remove('visible');
+        await completeSaveResult(guestNick);
+    });
 }
 
 // ====== UI Helpers ======
@@ -510,15 +524,18 @@ function calculateResult() {
 // ====== Save + Share ======
 // ====== Save + Share ======
 async function handleSaveResult() {
-    let guestNick = null;
     let emailKey = currentUser?.email || null;
 
     if (!currentUser) {
-        guestNick = prompt("Enter a nickname to show on the leaderboard (leave blank for Guest):");
-        if (guestNick === null) return; // User cancelled prompt
-        if (!guestNick) guestNick = `Guest-${Math.floor(1000 + Math.random() * 9000)}`;
+        // Show the beautiful modal instead of browser prompt
+        modals['guest'].classList.add('visible');
+        return; // Execution stops here and waits for the modal form submission
     }
 
+    await completeSaveResult(null); // Pass null for guestNick since authenticated
+}
+
+async function completeSaveResult(guestNick) {
     const btn = document.getElementById('save-result-btn');
     const originalText = btn.textContent;
     btn.textContent = 'Saving...';
