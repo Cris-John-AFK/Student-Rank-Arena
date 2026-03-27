@@ -364,10 +364,18 @@ function renderAchievementBadges(containerId, achievement) {
 }
 
 function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
-    document.getElementById('prof-best-score').textContent = score === 'No quiz yet' ? score : `${score}/100`;
-    document.getElementById('prof-best-rank').textContent = rank === '—' ? rank : `Top ${rank}%`;
+    const eloEl = document.getElementById('profile-elo');
+    const rankEl = document.getElementById('profile-rank');
+    if (eloEl) {
+        // Fetch fresh profile data for Elo
+        getUserProfileData(currentUser?.email).then(data => {
+            if (data && data.elo) eloEl.textContent = data.elo;
+            else if (typeof score === 'number') eloEl.textContent = (score * 20) + 50; 
+        });
+    }
+    if (rankEl) rankEl.textContent = rank === '—' ? rank : `Top ${rank}%`;
     
-    // Always derive type live from score dictionary so it always matches the discovered grid
+    // Always derive type live from score dictionary
     const liveType = (typeof score === 'number' && studentTypesDict[score])
         ? studentTypesDict[score].type
         : (type || '—');
@@ -376,14 +384,6 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
     // Render exclusive dev achievement badge on top
     renderAchievementBadges('my-achievements', achievement);
     
-    // 🔥 Render Elo
-    const eloEl = document.getElementById('profile-elo');
-    if (eloEl) {
-        // Fetch fresh profile data for Elo
-        getUserProfileData(currentUser.email).then(data => {
-            if (data && data.elo) eloEl.textContent = data.elo;
-        });
-    }
 
     // Render the 101-types achievements grid
     renderAchievementsSection('my-achieve-grid', 'my-achieve-bar', 'my-achieve-count', earnedScores);
