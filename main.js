@@ -427,7 +427,15 @@ async function openEditProfileModal() {
     
     const results = await fetchUserResults(currentUser.email || currentUser.uid);
     if (results.length > 0) {
-        const uniqueTitles = [...new Set(results.map(r => r.type).filter(Boolean))];
+        // Collect all scores earned across history
+        const scores = [...new Set(results.flatMap(r => r.earnedScores || (r.score !== undefined ? [r.score] : [])))];
+        
+        // Map scores back to their modern type names
+        const titles = scores
+            .map(s => studentTypesDict[s]?.type)
+            .filter(Boolean);
+        
+        const uniqueTitles = [...new Set(titles)];
         select.innerHTML = uniqueTitles.map(t => `<option value="${t}">${t}</option>`).join('');
     } else {
         select.innerHTML = '<option value="">No past titles yet</option>';
@@ -669,7 +677,9 @@ function calculateResult() {
     social = dt.social;
     clutch = dt.clutch;
     
-    finalRank = Math.max(1, 101 - totalScore - Math.floor(Math.random() * 5)); 
+    // 🎯 Real Truth: Rank is now exactly based on score (100 = Top 1%, 0 = Top 101%)
+    // No more random fluctuations!
+    finalRank = 101 - totalScore; 
     proTip = totalScore > 80 ? "Keep dominating the curve!" : "Stay consistent, don't let up.";
 
     finalType = type;
