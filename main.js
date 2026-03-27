@@ -429,35 +429,56 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
 // ====== Public Profile Viewer ======
 window._openPublicProfile = function(entry) {
     const modal = document.getElementById('public-profile-modal');
-    document.getElementById('public-name').textContent = entry.displayName || 'Unknown';
-    document.getElementById('public-score').textContent = entry.score !== undefined ? `${entry.score}/100` : '—';
-    document.getElementById('public-rank').textContent = entry.rank ? `Top ${entry.rank}%` : '—';
+    if (!modal) return;
+
+    // 1. Core Info
+    const pName = document.getElementById('public-name');
+    if (pName) pName.textContent = entry.displayName || 'Unknown';
     
-    // Always derive type live from score dictionary
     const liveType = (entry.score !== undefined && studentTypesDict[entry.score])
         ? studentTypesDict[entry.score].type
         : (entry.type || '—');
-    document.getElementById('public-type').textContent = liveType;
+    const pType = document.getElementById('public-type');
+    if (pType) pType.textContent = liveType;
     
     const badge = document.getElementById('public-badge');
-    badge.textContent = entry.isPremium ? '⭐ Premium' : 'Free';
-    badge.style.background = entry.isPremium ? 'linear-gradient(135deg, #6366f1, #ec4899)' : '';
-    badge.style.color = entry.isPremium ? 'white' : '';
-    
-    renderAchievementBadges('public-achievements', entry.achievement);
-    
-    // 🔥 Public Elo & World Rank
+    if (badge) {
+        badge.textContent = entry.isPremium ? '⭐ Premium' : 'Free';
+        badge.style.background = entry.isPremium ? 'linear-gradient(135deg, #6366f1, #ec4899)' : '';
+        badge.style.color = entry.isPremium ? 'white' : '';
+    }
+
+    // 🔥 Dual-Rank Analytics Matrix (Matching the user's 2x2 drawing)
     const pElo = document.getElementById('public-elo');
-    const pWRank = document.getElementById('public-world-rank');
-    const elo = entry.elo || 500;
-    if (pElo) pElo.textContent = elo;
-    if (pWRank) {
-        // Use the precise rank from the leaderboard if available
-        if (entry.absoluteRank) {
-            pWRank.textContent = `#${entry.absoluteRank}`;
+    const pEloWorldRank = document.getElementById('public-world-rank');
+    const pScore = document.getElementById('public-score');
+    const pScoreWorldRank = document.getElementById('public-score-rank');
+
+    const eloValue = entry.elo || 500;
+    const scoreValue = entry.score !== undefined ? entry.score : 0;
+
+    if (pElo) pElo.textContent = eloValue;
+    if (pScore) pScore.textContent = `${scoreValue}/100`;
+
+    const currentTab = document.querySelector('.lb-tab.active')?.getAttribute('data-tab') || 'score';
+
+    // 🏆 Elo World Rank Standing
+    if (pEloWorldRank) {
+        if (currentTab === 'elo' && entry.absoluteRank) {
+            pEloWorldRank.textContent = `#${entry.absoluteRank}`;
         } else {
-            pWRank.textContent = '#—';
-            getUserEloRank(elo).then(r => pWRank.textContent = `#${r}`);
+            pEloWorldRank.textContent = '#—';
+            getUserRankByField('elo', eloValue).then(r => { if(pEloWorldRank) pEloWorldRank.textContent = `#${r}`; });
+        }
+    }
+
+    // 📝 Assessment World Rank Standing
+    if (pScoreWorldRank) {
+        if (currentTab === 'score' && entry.absoluteRank) {
+            pScoreWorldRank.textContent = `#${entry.absoluteRank}`;
+        } else {
+            pScoreWorldRank.textContent = '#—';
+            getUserRankByField('score', scoreValue).then(r => { if(pScoreWorldRank) pScoreWorldRank.textContent = `#${r}`; });
         }
     }
 
@@ -465,8 +486,16 @@ window._openPublicProfile = function(entry) {
     renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', earnedScores);
     
     const panel = modal.querySelector('.glass-panel');
-    panel.classList.remove('creator-border', 'extreme-border', 'void-border');
-    const combinedStr = (liveType || '') + (entry.achievement || '');
+    if (panel) {
+        panel.classList.remove('creator-border', 'extreme-border', 'void-border');
+        const combinedStr = (liveType || '') + (entry.achievement || '');
+        if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
+        else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
+        else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
+    }
+    
+    modal.classList.add('active');
+};
     if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
     else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
     else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
