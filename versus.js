@@ -255,7 +255,7 @@ function listenToRoom(roomId) {
             }
 
             // Sync host transition
-            if (isHost && vsStatus === 'playing') {
+            if (isHost && vsStatus === 'playing' && currentRoomId) {
                 checkRoundOver(data);
             }
         }
@@ -264,6 +264,9 @@ function listenToRoom(roomId) {
         if (data.status === 'finished' && vsStatus === 'playing') {
             finishVsGame(data);
         }
+    }, (error) => {
+        console.error("Listener Error:", error);
+        if (vsStatus !== 'idle') leaveRoom();
     });
 
     // Cleanup on disconnect (Basic)
@@ -313,6 +316,7 @@ function handleSlotMachineSync(idx) {
 }
 
 async function prepareGame(categoryId) {
+    if (!currentRoomId) return;
     try {
         console.log("🛠️ Preparing 10 questions for category:", categoryId);
         
@@ -383,6 +387,7 @@ function startVsTimer() {
 }
 
 async function submitVsAnswer(isCorrect) {
+    if (!currentRoomId) return;
     if (vsTimerInterval) clearInterval(vsTimerInterval);
     
     let bonus = isCorrect ? Math.floor(timeLeft / 5) : 0; // max +10 bonus
@@ -397,13 +402,19 @@ async function submitVsAnswer(isCorrect) {
         else if (b.disabled && !isCorrect) b.style.opacity = '0.5';
     });
 
-    await updateDoc(doc(db, 'rooms', currentRoomId), {
-        [`players.${myPlayerId}.score`]: vsScore,
-        [`players.${myPlayerId}.status`]: 'answered'
-    });
+    try {
+        const roomRef = doc(db, 'rooms', currentRoomId);
+        await updateDoc(roomRef, {
+            [`players.${myPlayerId}.score`]: vsScore,
+            [`players.${myPlayerId}.status`]: 'answered'
+        });
+    } catch(e) {
+        console.log("Submit ignored: Room likely already closed.");
+    }
 }
 
 function checkRoundOver(data) {
+    if (!currentRoomId) return;
     const pIds = Object.keys(data.players);
     const allAnswered = pIds.every(id => data.players[id].status === 'answered');
 
@@ -411,14 +422,20 @@ function checkRoundOver(data) {
         const nextIdx = data.currentQuestionIndex + 1;
         if (nextIdx < 10) {
             setTimeout(async () => {
-                await updateDoc(doc(db, 'rooms', currentRoomId), {
-                    currentQuestionIndex: nextIdx,
-                    'players': Object.fromEntries(pIds.map(id => [id, { ...data.players[id], status: 'waiting' }]))
-                });
+                if (!currentRoomId) return;
+                try {
+                    await updateDoc(doc(db, 'rooms', currentRoomId), {
+                        currentQuestionIndex: nextIdx,
+                        'players': Object.fromEntries(pIds.map(id => [id, { ...data.players[id], status: 'waiting' }]))
+                    });
+                } catch(e) {}
             }, 1800);
         } else {
             setTimeout(async () => {
-                await updateDoc(doc(db, 'rooms', currentRoomId), { status: 'finished' });
+                if (!currentRoomId) return;
+                try {
+                    await updateDoc(doc(db, 'rooms', currentRoomId), { status: 'finished' });
+                } catch(e) {}
             }, 1800);
         }
     }
