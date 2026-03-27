@@ -248,7 +248,7 @@ export async function fetchUserResults(userId) {
 }
 
 export async function fetchLeaderboard(orderByField = 'score', limitCount = 50) {
-    if (!isFirebaseConfigured) return null;
+    if (!isFirebaseConfigured) return [];
     try {
         const resultsRef = collection(db, 'results');
         const q = query(resultsRef, orderBy(orderByField, 'desc'), limit(limitCount));
@@ -256,11 +256,10 @@ export async function fetchLeaderboard(orderByField = 'score', limitCount = 50) 
         const leaderboardData = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            const actualIdInDoc = data.userId || null;
-            // Filter duplicates: skip the hash doc if an email doc exists
-            if (actualIdInDoc && actualIdInDoc.includes('@') && doc.id !== actualIdInDoc) return;
             leaderboardData.push({ id: doc.id, ...data });
         });
+        // Ensure Elo exists for sorting
+        leaderboardData.forEach(d => { if (d.elo === undefined) d.elo = 500; });
         return leaderboardData;
     } catch (e) { console.error("Leaderboard fetch failed:", e); return []; }
 }
@@ -280,8 +279,15 @@ export async function fetchLeaderboardAround(field, value, cushion = 3) {
         const lowData = [];
         snapLow.forEach(doc => lowData.push({ id: doc.id, ...doc.data() }));
 
-        return [...highData, ...lowData];
-    } catch (e) { console.error("Around-me fetch failed:", e); return []; }
+        const combined = [...highData, ...lowData];
+        // Ensure Elo exists for local display
+        combined.forEach(d => { if (d.elo === undefined) d.elo = 500; });
+        return combined;
+    } catch (e) {
+        console.error("Around-me fetch failed:", e);
+        // Backup: Just fetch Top 10 by score if Elo query dies/is empty
+        return fetchLeaderboard('score', 10);
+    }
 }
 
 /**
