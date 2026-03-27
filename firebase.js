@@ -302,17 +302,16 @@ export async function fetchLeaderboardAround(field, value, cushion = 3) {
 /**
  * 🏆 Calculates the global Elo rank of a user
  */
-export async function getUserEloRank(myElo) {
-    if (!isFirebaseConfigured) return 0;
+export async function getUserRankByField(field, value) {
+    if (!isFirebaseConfigured || value === undefined) return 0;
     try {
         const resultsRef = collection(db, 'results');
-        // Simple count of people with strictly more Elo 
-        // This only requires a single-field index (default in Firestore)
-        const q = query(resultsRef, where('elo', '>', myElo));
+        const q = query(resultsRef, where(field, '>', value));
         const snapshot = await getCountFromServer(q);
         return (snapshot.data().count || 0) + 1;
-    } catch (e) { 
-        console.error("Rank fetch failed:", e); 
-        return 0; 
-    }
+    } catch (e) { console.error(`Rank fetch (${field}) failed:`, e); return 0; }
+}
+
+export async function getUserEloRank(myElo) {
+    return getUserRankByField('elo', myElo);
 }
