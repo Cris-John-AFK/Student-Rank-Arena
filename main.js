@@ -246,21 +246,26 @@ async function renderLeaderboard(tab) {
         if (isMe) nameDisplay += " (You)";
 
         // Developer Achievements
-        const isCreator = entry.type && entry.type.includes('The Creator');
-        const isExtreme = entry.type && entry.type.includes('The Extreme');
-        const isVoid = entry.type && entry.type.includes('The Void Master');
+        const isCreator = entry.achievement?.includes('The Creator') || entry.type?.includes('The Creator');
+        const isExtreme = entry.achievement?.includes('The Extreme') || entry.type?.includes('The Extreme');
+        const isVoid = entry.achievement?.includes('The Void Master') || entry.type?.includes('The Void Master');
         
         let devClass = '';
         if (isCreator) devClass = 'creator-border';
         else if (isExtreme) devClass = 'extreme-border';
         else if (isVoid) devClass = 'void-border';
 
+        let displayType = entry.type;
+        if (entry.achievement) {
+            displayType += ` | ${entry.achievement}`;
+        }
+
         return `
             <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''} ${devClass}">
                 <div class="lb-rank ${rankClass}">${medal}</div>
                 <div class="lb-info">
                     <div class="lb-name">${nameDisplay} ${entry.isPremium ? '⭐' : ''}</div>
-                    <div class="lb-type">${entry.type}</div>
+                    <div class="lb-type">${displayType}</div>
                 </div>
                 <div class="lb-score">${entry.score}/100</div>
             </div>
@@ -279,17 +284,21 @@ async function renderLeaderboard(tab) {
     teaser.style.display = 'none'; // Replaced premium teaser with 20-limit for all
 }
 
-function updateProfileStatsUI(score, rank, type) {
+function updateProfileStatsUI(score, rank, type, achievement) {
     document.getElementById('prof-best-score').textContent = score === 'No quiz yet' ? score : `${score}/100`;
     document.getElementById('prof-best-rank').textContent = rank === '—' ? rank : `Top ${rank}%`;
-    document.getElementById('prof-type').textContent = type;
+    
+    let displayType = type;
+    if (achievement) displayType += ` | ${achievement}`;
+    document.getElementById('prof-type').textContent = displayType;
     
     const panel = document.getElementById('profile').querySelector('.glass-panel');
     panel.classList.remove('creator-border', 'extreme-border', 'void-border');
     
-    if (type && type.includes('The Creator')) panel.classList.add('creator-border');
-    else if (type && type.includes('The Extreme')) panel.classList.add('extreme-border');
-    else if (type && type.includes('The Void Master')) panel.classList.add('void-border');
+    const combinedStr = (type || '') + (achievement || '');
+    if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
+    else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
+    else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
 }
 
 // ====== Profile ======
@@ -333,12 +342,12 @@ async function openProfile() {
     if (myResults.length > 0) {
         // Find best score (Highest score is best in our new ranking)
         const best = myResults.reduce((a, b) => a.score > b.score ? a : b);
-        updateProfileStatsUI(best.score, best.rank, best.type);
+        updateProfileStatsUI(best.score, best.rank, best.type, best.achievement);
     } else {
         // 🔑 Second chance: check their direct user document
         const userData = await getUserProfileData(currentUser.email);
         if (userData && (userData.lastScore !== undefined)) {
-            updateProfileStatsUI(userData.lastScore, userData.lastRank, userData.lastType || '—');
+            updateProfileStatsUI(userData.lastScore, userData.lastRank, userData.lastType || '—', userData.achievement);
         } else {
             updateProfileStatsUI('No quiz yet', '—', '—');
         }
