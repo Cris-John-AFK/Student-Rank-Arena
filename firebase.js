@@ -292,16 +292,28 @@ export async function getUserEloRank(myElo, myDate) {
     try {
         const resultsRef = collection(db, 'results');
         
-        // Final Rank = (People with more Elo) + (People with same Elo but earlier date) + 1
-        const qTieBreak = query(
-            resultsRef, 
-            or(
-                where('elo', '>', myElo),
-                and(where('elo', '==', myElo), where('date', '<', myDate))
-            )
-        );
+        // Split rank into two simple counts to avoid complex composite index requirements
+        // 1. People with strictly more Elo
+        const qHigherElo = query(resultsRef, where('elo', '>', myElo));
+        // 2. People with same Elo but smaller (earlier) date
+        const qTiedEloEarlier = query(resultsRef, where('elo', '==', myElo), where('date', '<', myDate));
 
-        const snapshot = await getCountFromServer(qTieBreak);
-        return (snapshot.data().count || 0) + 1;
-    } catch (e) { console.error("Rank fetch failed:", e); return 0; }
+        const [snapHigher, snapTied] = await Promise.all([
+            getCountFromServer(qHigherElo),
+            getCountFromServer(qTiedEloEarlier)
+        ]);
+
+        const higherCount = snapHigher.data().count || 0;
+        const tiedCount = snapTied.data().count || 0;
+
+        return higherCount + tiedCount + 1;
+    } catch (e) {
+        console.error("Rank fetch failed:", e);
+        // Fallback: If tied-query fails due to index, at least show the basic rank
+        try {
+            const qBasic = query(collection(db, 'results'), where('elo', '>', myElo));
+            const snap = await getCountFromServer(qBasic);
+            return (snap.data().count || 0) + 1;
+        } catch(e2) { return 0; }
+    }
 }
