@@ -765,15 +765,13 @@ async function completeSaveResult(guestNick) {
         btn.disabled = false;
         btn.onclick = () => { location.reload(); }; // Simplest way to go back home cleanly
 
-        // 🔥 Elo Placement Display in results screen after saving
-        if (res.isNewElo) {
-            document.getElementById('elo-notice').style.display = 'inline-block';
-            document.getElementById('res-elo').textContent = res.elo; // Use the ELO returned from saveUserResult
-        } else {
-            document.getElementById('elo-notice').style.display = 'none';
-            // Show current Elo if not a new placement
-            const userData = await getUserProfileData(currentUser.email);
-            if (userData) document.getElementById('res-elo').textContent = userData.elo || '500';
+        if (res.isNewElo || true) {
+            const eloCard = document.getElementById('elo-result-card');
+            if (eloCard) {
+                eloCard.style.display = 'block';
+                const eloVal = document.getElementById('res-elo');
+                if (eloVal) eloVal.textContent = res.elo || '500';
+            }
         }
     } else {
         showToast('Error saving rank.');

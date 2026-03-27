@@ -11,6 +11,7 @@ let vsCurrentIndex = 0;
 let vsScore = 0;
 let vsOpponentScore = 0;
 let vsStatus = 'idle'; // idle, matching, lobby, playing, finished
+let timeLeft = 10; // In seconds
 
 const BATTLE_TOPICS = [
     { id: 9, name: "General Knowledge", icon: "🌍" },
@@ -383,23 +384,24 @@ function renderVsQuestion() {
     startVsTimer();
 }
 
-let timeLeft = 50; // Use x10 for 0.1 increments
 function startVsTimer() {
-    if (vsTimerInterval) clearInterval(vsTimerInterval);
-    timeLeft = 50;
+    timeLeft = 10; // Reset to 10 seconds
     const bar = document.getElementById('vs-count-bar');
     const txt = document.getElementById('vs-timer-text');
     
+    if (vsTimerInterval) clearInterval(vsTimerInterval);
+    
     vsTimerInterval = setInterval(() => {
-        timeLeft -= 1;
-        bar.style.width = `${(timeLeft / 50) * 100}%`;
-        txt.textContent = `${Math.ceil(timeLeft / 10)}s`;
+        timeLeft -= 0.1; // Decrement by 0.1 seconds
+        const pct = (timeLeft / 10) * 100; // Calculate percentage based on 10 seconds
+        bar.style.width = `${pct}%`;
+        txt.textContent = `${Math.ceil(timeLeft)}s`; // Display rounded up seconds
 
         if (timeLeft <= 0) {
             clearInterval(vsTimerInterval);
             submitVsAnswer(false);
         }
-    }, 100);
+    }, 100); // Update every 100ms
 }
 
 async function submitVsAnswer(isCorrect) {
@@ -443,7 +445,7 @@ function checkRoundOver(data) {
     if (data.lastRoundStart) {
         const startTime = data.lastRoundStart.toMillis ? data.lastRoundStart.toMillis() : Date.now();
         const elapsed = Date.now() - startTime;
-        if (elapsed > 9000) timedOut = true; // 5s quiz + 4s buffer
+        if (elapsed > 12500) timedOut = true; // 10s quiz + 2.5s buffer
     }
 
     // Host or Client (as fallback) can trigger skip if timed out OR all answered

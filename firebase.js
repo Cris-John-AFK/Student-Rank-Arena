@@ -98,6 +98,9 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
         date: new Date().toISOString(),
     };
 
+    let eloToReturn = 500;
+    let isNewElo = false;
+
     if (isFirebaseConfigured && email) {
         try {
             const userRef = doc(db, 'users', email);
@@ -110,12 +113,15 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
             };
 
             if (!userSnap.exists() || !userSnap.data().hasPlacement) {
-                updates.elo = (score * 20) + 50;
+                eloToReturn = (score * 20) + 50;
+                updates.elo = eloToReturn;
                 updates.hasPlacement = true;
                 updates.bestScore = score;
                 updates.bestType = studentType;
+                isNewElo = true;
             } else {
                 const existingData = userSnap.data();
+                eloToReturn = existingData.elo || 500;
                 if (score > (existingData.bestScore || 0)) {
                     updates.bestScore = score;
                     updates.bestType = studentType;
@@ -134,14 +140,21 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
             const leaderboardRef = doc(db, 'results', currentUserId);
             const saveData = { ...resultData, userId: currentUserId, earnedScores: arrayUnion(score) };
             await setDoc(leaderboardRef, saveData, { merge: true });
-            return { success: true, displayName, userId: currentUserId, isNewElo: !userSnap?.data()?.hasPlacement };
+            
+            return { 
+                success: true, 
+                displayName, 
+                userId: currentUserId, 
+                isNewElo: isNewElo, 
+                elo: eloToReturn 
+            };
         } catch (e) {
             console.error('Save failed:', e);
             return { success: false, error: e.message };
         }
     } else {
         localStorage.setItem('lastResult', JSON.stringify(resultData));
-        return { success: true, displayName, userId };
+        return { success: true, displayName, userId, elo: eloToReturn };
     }
 }
 
