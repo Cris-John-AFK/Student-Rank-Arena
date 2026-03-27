@@ -300,7 +300,7 @@ async function openProfile() {
     // Load real results from Firestore
     let myResults = [];
     if (isFirebaseConfigured) {
-        myResults = await fetchUserResults(currentUser.email);
+        myResults = await fetchUserResults(currentUser.email || currentUser.uid);
     } else {
         const results = JSON.parse(localStorage.getItem('studentResults') || '[]');
         myResults = results.filter(r => r.userId === (currentUser.email || currentUser.uid));

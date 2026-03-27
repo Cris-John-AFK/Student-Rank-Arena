@@ -198,6 +198,13 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
 /* Only show ads if they have content OR if we want to force them for non-premium */
 .ad-space:not(.premium-hidden) { display: flex; }
 
+@media (max-width: 950px) {
+    .ad-left, .ad-right {
+        display: none !important;
+    }
+    .content-wrapper { padding: 10px; width: 100%; justify-content: center; }
+}
+
 /* 🛡️ Fix No Slot Size Error: Keep the div available but invisible until content exists */
 .ad-space:empty { border: none !important; background: transparent !important; min-height: 1px; }
 

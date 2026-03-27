@@ -217,20 +217,20 @@ export async function getUserProfileData(email) {
 // ================================================
 // Fetch Results for a Specific User
 // ================================================
-export async function fetchUserResults(email) {
-    if (!email || !isFirebaseConfigured) return [];
+export async function fetchUserResults(userId) {
+    if (!userId || !isFirebaseConfigured) return [];
     try {
         const { query, collection, where, getDocs } = await import("firebase/firestore");
         const resultsRef = collection(db, 'results');
         // 🔑 We remove orderBy from the query to avoid needing a Composite Index in Firebase Console
-        const q = query(resultsRef, where('userId', '==', email));
+        const q = query(resultsRef, where('userId', '==', userId));
         const querySnapshot = await getDocs(q);
         
         const myData = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             // 🛡️ Legacy Cleanup: Ignore old auto-generated ID documents to prevent overlapping duplicates
-            if (doc.id !== email) return; 
+            if (doc.id !== userId) return; 
             myData.push({ id: doc.id, ...data });
         });
 
