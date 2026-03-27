@@ -61,8 +61,11 @@
                 <h2 class="subtitle">Find out what kind of student you are—and how you rank against others 👀</h2>
                 <div class="btn-group">
                     <button id="start-btn" class="btn btn-primary btn-glow">🎮 Start Quiz</button>
-                    <button id="leaderboard-btn" class="btn btn-secondary">🏆 Leaderboard</button>
-                    <button id="login-guest-btn" class="btn btn-secondary" id="auth-landing-btn">👤 Login / Register</button>
+                    <button id="versus-btn" class="btn btn-premium btn-pulse">⚔️ Versus Arena</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="leaderboard-btn" class="btn btn-secondary" style="flex:1;">🏆 Leaderboard</button>
+                        <button id="login-guest-btn" class="btn btn-secondary" style="flex:1;">👤 Login</button>
+                    </div>
                 </div>
                 <div class="stats-preview mt-2">
                     Over <strong>10,000+</strong> students already ranked!
@@ -193,6 +196,91 @@
                     <div class="quiz-navigation" style="margin-top: 1.5rem; text-align: left;">
                         <button id="prev-btn" class="text-btn" style="display: none;">← Previous Question</button>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Versus Waiting Screen -->
+        <section id="versus-lobby" class="screen">
+            <div class="glass-panel text-center">
+                <h2 class="gradient-text mb-2">⚔️ Battle Lobby</h2>
+                <div id="lobby-status" class="subtitle">Looking for opponent...</div>
+                
+                <div class="lobby-players">
+                    <div class="lobby-player p1">
+                        <div class="lobby-avatar" id="p1-avatar">🎓</div>
+                        <div id="p1-name" class="lobby-name">You</div>
+                        <div class="badge badge-neon">Host</div>
+                    </div>
+                    <div class="vs-divider">VS</div>
+                    <div class="lobby-player p2">
+                        <div class="lobby-avatar" id="p2-avatar">❓</div>
+                        <div id="p2-name" class="lobby-name">Waiting...</div>
+                        <div class="badge" style="opacity: 0.5;">Opponent</div>
+                    </div>
+                </div>
+
+                <div id="room-code-display" class="mt-4" style="display:none;">
+                    <div class="label">Invite Friend Code:</div>
+                    <div id="share-code" class="share-code">XXXXXX</div>
+                </div>
+
+                <div class="mt-4">
+                    <button id="cancel-vs-btn" class="text-btn">❌ Cancel Matchmaking</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Versus Quiz Screen -->
+        <section id="versus-quiz" class="screen">
+            <div class="quiz-container glass-panel" style="position: relative; padding-top: 4rem;">
+                <!-- VS HUD -->
+                <div class="vs-hud">
+                    <div class="player-stat left">
+                        <span id="vs-my-name" class="vs-name">You</span>
+                        <span id="vs-my-score" class="vs-score">0</span>
+                    </div>
+                    <div class="vs-timer-container">
+                        <div id="vs-count-bar" class="vs-count-bar"></div>
+                        <span id="vs-timer-text" class="vs-timer-text">5s</span>
+                    </div>
+                    <div class="player-stat right">
+                        <span id="vs-opp-score" class="vs-score">0</span>
+                        <span id="vs-opp-name" class="vs-name">...</span>
+                    </div>
+                </div>
+
+                <div class="question-header">
+                    <span id="vs-q-count">Question 1/5</span>
+                    <span id="vs-category" class="badge badge-neon">General Knowledge</span>
+                </div>
+                <div class="quiz-content">
+                    <h3 id="vs-q-text">Loading question...</h3>
+                    <div id="vs-options" class="options"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Versus Results Screen -->
+        <section id="versus-result" class="screen">
+            <div class="glass-panel text-center">
+                <div id="vs-status-icon" style="font-size: 4rem; margin-bottom: 1rem;">🏆</div>
+                <h1 id="vs-result-title" class="gradient-text">YOU WIN!</h1>
+                <p id="vs-result-msg" class="subtitle">You dominated the arena!</p>
+                
+                <div class="vs-final-scores">
+                    <div class="final-score-box">
+                        <div class="label">Your Score</div>
+                        <div id="vs-final-my-score" class="value">0</div>
+                    </div>
+                    <div class="final-score-box">
+                        <div class="label">Opponent</div>
+                        <div id="vs-final-opp-score" class="value">0</div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button id="vs-back-btn" class="btn btn-primary w-100">Back to Hub</button>
                 </div>
             </div>
         </section>
@@ -350,7 +438,46 @@
             </div>
         </div>
 
-        <!-- Auth Modal -->
+        <!-- Versus Choice Modal -->
+    <div id="vs-choice-modal" class="modal">
+        <div class="modal-content glass-panel text-center">
+            <span class="close-btn" id="close-vs-choice">&times;</span>
+            <h2 class="gradient-text mb-1">Battle Mode</h2>
+            <p class="subtitle mb-3">Choose your destiny in the arena</p>
+            
+            <div class="matchmaking-grid">
+                <button id="vs-random-btn" class="match-option-btn">
+                    <div class="icon">🌍</div>
+                    <div class="text">
+                        <strong>Random Match</strong>
+                        <span>Compete with strangers</span>
+                    </div>
+                </button>
+                <button id="vs-friend-btn" class="match-option-btn">
+                    <div class="icon">🎟️</div>
+                    <div class="text">
+                        <strong>Invite Friend</strong>
+                        <span>Play with someone you know</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Room Modal -->
+    <div id="vs-join-modal" class="modal">
+        <div class="modal-content glass-panel text-center">
+            <span class="close-btn" id="close-vs-join">&times;</span>
+            <h2 class="gradient-text mb-2">Join Room</h2>
+            <div class="input-field mb-4">
+                <label>Enter 6-Digit Code</label>
+                <input type="text" id="vs-join-code" placeholder="XXXXXX" maxlength="6" style="text-align: center; text-transform: uppercase; font-size: 1.5rem; letter-spacing: 5px;">
+            </div>
+            <button id="vs-confirm-join" class="btn btn-primary w-100">JOIN BATTLE</button>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
         <div id="auth-modal" class="modal">
             <div class="modal-content glass-panel">
                 <button class="close-auth-btn close-btn">&times;</button>

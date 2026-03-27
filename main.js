@@ -1,6 +1,7 @@
 import { questions } from './questions.js';
 import { studentTypesDict } from './studentTypes.js';
 import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, db } from './firebase.js';
+import { initVersus } from './versus.js';
 
 // ====== DOM Screens ======
 const screens = {
@@ -10,12 +11,17 @@ const screens = {
     profile: document.getElementById('profile'),
     'ad-screen': document.getElementById('ad-screen'),
     calculating: document.getElementById('calculating'),
-    result: document.getElementById('result')
+    result: document.getElementById('result'),
+    'versus-lobby': document.getElementById('versus-lobby'),
+    'versus-quiz': document.getElementById('versus-quiz'),
+    'versus-result': document.getElementById('versus-result')
 };
 
 const modals = {
     auth: document.getElementById('auth-modal'),
-    paywall: document.getElementById('paywall-modal')
+    paywall: document.getElementById('paywall-modal'),
+    'vs-choice': document.getElementById('vs-choice-modal'),
+    'vs-join': document.getElementById('vs-join-modal')
 };
 
 // ====== State ======
@@ -55,6 +61,7 @@ const mockLeaderboard = {
 // ====== Init ======
 function init() {
     setupEventListeners();
+    initVersus();
 
     // ✅ Persist login: fires when Firebase restores session on page load
     onUserStateChange(async (user) => {

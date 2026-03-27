@@ -361,3 +361,48 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
     transform: translateX(4px) scale(1.01);
     box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
 }
+/* Versus Mode Extensions */
+.matchmaking-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 1rem; }
+.match-option-btn { background: var(--surface-light); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem 1rem; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 10px; color: white; }
+.match-option-btn:hover { border-color: var(--primary); background: rgba(139, 92, 246, 0.1); transform: translateY(-3px); }
+.match-option-btn .icon { font-size: 2.5rem; }
+.match-option-btn .text strong { display: block; font-size: 1rem; }
+.match-option-btn .text span { font-size: 0.75rem; color: var(--text-muted); }
+
+.lobby-players { display: flex; align-items: center; justify-content: center; gap: 2rem; margin: 2rem 0; }
+.lobby-player { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lobby-avatar { font-size: 3rem; background: var(--surface-light); width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid var(--border); }
+.vs-divider { font-size: 1.5rem; font-weight: 900; color: var(--accent); font-style: italic; }
+.lobby-name { font-weight: 700; width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.share-code { background: rgba(255,255,255,0.05); padding: 10px 20px; font-size: 2rem; font-weight: 900; letter-spacing: 5px; color: var(--primary); border-radius: 12px; border: 1px dashed var(--primary); margin-top: 0.5rem; display: inline-block; }
+
+/* Versus HUD */
+.vs-hud { position: absolute; top: 0; left: 0; right: 0; height: 4rem; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); border-radius: 24px 24px 0 0; display: flex; align-items: center; padding: 0 1.5rem; }
+.player-stat { flex: 1; display: flex; flex-direction: column; }
+.player-stat.left { align-items: flex-start; }
+.player-stat.right { align-items: flex-end; }
+.vs-name { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+.vs-score { font-size: 1.4rem; font-weight: 900; color: white; }
+.vs-timer-container { width: 120px; height: 28px; background: rgba(255,255,255,0.05); border-radius: 99px; position: relative; overflow: hidden; margin: 0 1rem; }
+.vs-count-bar { position: absolute; left: 0; top: 0; height: 100%; background: linear-gradient(90deg, var(--accent), var(--primary)); width: 100%; transition: width 0.1s linear; }
+.vs-timer-text { position: absolute; width:100%; text-align:center; top: 50%; transform: translateY(-50%); font-size: 0.8rem; font-weight: 900; text-shadow: 0 1px 4px black; }
+
+.vs-final-scores { display: flex; gap: 15px; margin: 1.5rem 0; }
+.final-score-box { flex: 1; background: var(--surface-light); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; }
+.final-score-box .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
+.final-score-box .value { font-size: 2rem; font-weight: 900; }
+
+/* Versus Animations & Polish */
+.winner-glow {
+    animation: gold-pulse 2s infinite alternate;
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+}
+@keyframes gold-pulse {
+    from { color: #fff; transform: scale(1); }
+    to { color: #ffd700; transform: scale(1.05); }
+}
+.vs-hud { z-index: 20; box-shadow: 0 5px 20px rgba(0,0,0,0.4); }
+#vs-timer-text { font-variant-numeric: tabular-nums; }
+.lobby-status { animation: pulse 1.5s infinite; }
+
