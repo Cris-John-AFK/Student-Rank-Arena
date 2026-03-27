@@ -128,6 +128,9 @@ async function createRoom(type, customId = null) {
                 avatar: '🎓'
             }
         },
+        playerEmails: {
+            [myPlayerId]: auth.currentUser.email || null
+        },
         createdAt: serverTimestamp(),
         currentQuestionIndex: -1 // Host signals start by setting to 0
     };
@@ -184,6 +187,7 @@ async function joinRoom(roomId) {
             status: 'waiting',
             avatar: '⚡'
         },
+        [`playerEmails.${myPlayerId}`]: auth.currentUser.email || null,
         playerCount: 2,
         matchStatus: 'full' 
     });
@@ -469,9 +473,17 @@ function finishVsGame(data) {
     const myScore = vsScore;
     const oppScore = vsOpponentScore;
 
-    showVsScreen('result');
-    document.getElementById('vs-final-my-score').textContent = myScore;
     document.getElementById('vs-final-opp-score').textContent = oppScore;
+
+    const myEmail = auth.currentUser.email;
+    const pIds = Object.keys(data.players);
+    const oppId = pIds.find(id => id !== myPlayerId);
+    const oppEmail = data.oppEmail; // Host should have stored this
+
+    // 🔥 Update ELO (Only once)
+    if (vsStatus === 'playing') {
+        processEloUpdate(myScore, oppScore, data);
+    }
 
     const title = document.getElementById('vs-result-title');
     const msg = document.getElementById('vs-result-msg');
@@ -490,6 +502,35 @@ function finishVsGame(data) {
         title.textContent = "DRAW! 🤝";
         msg.textContent = "It seems you found your match.";
         icon.textContent = "⚖️";
+    }
+}
+
+
+async function processEloUpdate(myScore, oppScore, roomData) {
+    if (!auth.currentUser?.email) return;
+    
+    // Find opponent email
+    const pIds = Object.keys(roomData.players);
+    const oppId = pIds.find(id => id !== myPlayerId);
+    const oppEmail = roomData.playerEmails?.[oppId];
+
+    if (oppEmail) {
+        try {
+            const { updateEloAfterMatch } = await import('./firebase.js');
+            const won = myScore > oppScore;
+            const result = await updateEloAfterMatch(auth.currentUser.email, oppEmail, won);
+            
+            if (result) {
+                const resultsScreen = document.getElementById('versus-result');
+                const eloDiv = document.createElement('div');
+                eloDiv.style.marginTop = '20px';
+                eloDiv.style.fontSize = '1.4rem';
+                eloDiv.style.fontWeight = '900';
+                eloDiv.style.color = result.change >= 0 ? '#10b981' : '#ef4444';
+                eloDiv.innerHTML = `Elo Change: ${result.change >= 0 ? '+' : ''}${result.change} 🚀<br><small style="color:white; font-size:0.8rem">New Elo: ${result.newElo}</small>`;
+                resultsScreen.querySelector('.quiz-container').appendChild(eloDiv);
+            }
+        } catch(e) { console.error("Elo display error", e); }
     }
 }
 

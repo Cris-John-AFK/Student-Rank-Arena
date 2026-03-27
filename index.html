@@ -59,8 +59,14 @@
                     <h1>STUDENT RANK <span class="gradient-text">ARENA</span></h1>
                 </div>
                 <h2 class="subtitle">Find out what kind of student you are—and how you rank against others 👀</h2>
+                <div class="main-buttons">
+                <button id="start-btn" class="primary-btn">🚀 Start Placement Quiz</button>
+                <div id="user-elo-banner" class="elo-badge" style="display:none; margin-top:10px;">
+                    🧠 Elo Knowledge: <span id="landing-elo">500</span>
+                </div>
+                <button id="leaderboard-btn" class="secondary-btn">🏆 Rankings</button>
+            </div>
                 <div class="btn-group">
-                    <button id="start-btn" class="btn btn-primary btn-glow">🎮 Start Quiz</button>
                     <button id="versus-btn" class="btn btn-premium btn-pulse">⚔️ Versus Arena</button>
                     <div style="display: flex; gap: 10px;">
                         <button id="leaderboard-btn" class="btn btn-secondary" style="flex:1;">🏆 Leaderboard</button>
@@ -141,14 +147,14 @@
                 </div>
 
                 <div id="profile-stats" class="profile-stats">
-                    <div class="profile-stats-row">
-                        <div class="stat-box">
-                            <span class="label">Best Score</span>
-                            <span id="prof-best-score" class="value">—</span>
+                    <div class="profile-stats">
+                        <div class="stat-card">
+                            <span class="stat-label">Knowledge Elo</span>
+                            <span id="profile-elo" class="stat-value">500</span>
                         </div>
-                        <div class="stat-box primary">
-                            <span class="label">Best Rank</span>
-                            <span id="prof-best-rank" class="value glow">—</span>
+                        <div class="stat-card">
+                            <span class="stat-label">Best Rank</span>
+                            <span id="profile-rank" class="stat-value">101</span>
                         </div>
                     </div>
                     <div class="stat-box type-box">
@@ -563,7 +569,20 @@
                 <div id="public-achievements" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; font-weight: 900; font-size: 1rem; text-shadow: 0 0 10px rgba(255,255,255,0.3);"></div>
                 <h2 id="public-name" class="gradient-text" style="font-size: 2rem; margin-bottom: 5px;">Name</h2>
                 <div id="public-badge" class="badge" style="display:inline-block; margin-bottom: 1.5rem; padding: 5px 10px;">Free</div>
-                
+                <div class="result-card glass-panel text-center">
+                    <h2 class="gradient-text winner-glow mb-2">Quiz Finished!</h2>
+                    <div id="elo-notice" class="badge badge-accent mb-2" style="display:none;">Placement Complete!</div>
+                    <div class="result-stats">
+                        <div class="result-stat-box">
+                            <div class="label">Initial Elo</div>
+                            <div id="res-elo" class="value">0</div>
+                        </div>
+                        <div class="result-stat-box">
+                            <div class="label">Accuracy</div>
+                            <div id="res-score" class="value">0%</div>
+                        </div>
+                    </div>
+                </div>
                 <div class="profile-stats mt-3">
                     <div class="profile-stats-row">
                         <div class="stat-box">

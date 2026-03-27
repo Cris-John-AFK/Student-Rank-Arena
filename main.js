@@ -376,6 +376,15 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
     // Render exclusive dev achievement badge on top
     renderAchievementBadges('my-achievements', achievement);
     
+    // 🔥 Render Elo
+    const eloEl = document.getElementById('profile-elo');
+    if (eloEl) {
+        // Fetch fresh profile data for Elo
+        getUserProfileData(currentUser.email).then(data => {
+            if (data && data.elo) eloEl.textContent = data.elo;
+        });
+    }
+
     // Render the 101-types achievements grid
     renderAchievementsSection('my-achieve-grid', 'my-achieve-bar', 'my-achieve-count', earnedScores);
     
@@ -408,6 +417,10 @@ window._openPublicProfile = function(entry) {
     
     renderAchievementBadges('public-achievements', entry.achievement);
     
+    // 🔥 Public Profile Elo
+    const pElo = document.getElementById('public-elo');
+    if (pElo) pElo.textContent = entry.elo || '500';
+
     const earnedScores = entry.earnedScores || (entry.score !== undefined ? [entry.score] : []);
     renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', earnedScores);
     
@@ -723,7 +736,6 @@ function calculateResult() {
 }
 
 // ====== Save + Share ======
-// ====== Save + Share ======
 async function handleSaveResult() {
     let emailKey = currentUser?.email || null;
 
@@ -752,6 +764,17 @@ async function completeSaveResult(guestNick) {
         btn.textContent = 'Go Home 🏠';
         btn.disabled = false;
         btn.onclick = () => { location.reload(); }; // Simplest way to go back home cleanly
+
+        // 🔥 Elo Placement Display in results screen after saving
+        if (res.isNewElo) {
+            document.getElementById('elo-notice').style.display = 'inline-block';
+            document.getElementById('res-elo').textContent = res.elo; // Use the ELO returned from saveUserResult
+        } else {
+            document.getElementById('elo-notice').style.display = 'none';
+            // Show current Elo if not a new placement
+            const userData = await getUserProfileData(currentUser.email);
+            if (userData) document.getElementById('res-elo').textContent = userData.elo || '500';
+        }
     } else {
         showToast('Error saving rank.');
         btn.disabled = false;
