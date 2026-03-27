@@ -208,6 +208,15 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
 /* 🛡️ Fix No Slot Size Error: Keep the div available but invisible until content exists */
 .ad-space:empty { border: none !important; background: transparent !important; min-height: 1px; }
 
+/* 🚨 Collapse Unfilled / Dead AdSense Slots Completely */
+.adsbygoogle[data-ad-status="unfilled"],
+.ad-space:has(.adsbygoogle[data-ad-status="unfilled"]) {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 .ad-placeholder-large { height: 250px; background: rgba(0,0,0,0.5); border: 1px dashed var(--border); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 1rem; color: var(--text-muted); }
 .premium-hidden { display: none !important; }
 
