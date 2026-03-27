@@ -263,8 +263,8 @@ function listenToRoom(roomId) {
                 vsOpponentScore = oppData.score || 0;
             }
 
-            // Sync host transition (Force skip if stuck)
-            if (isHost && vsStatus === 'playing' && currentRoomId) {
+            // Sync transitions (Force skip if stuck)
+            if (vsStatus === 'playing' && currentRoomId) {
                 checkRoundOver(data);
             }
         }
@@ -472,14 +472,17 @@ function checkRoundOver(data) {
             }
         } else {
             // LAST QUESTION FINISH
-            if (isHost || timedOut) {
-                setTimeout(async () => {
-                    if (!currentRoomId) return;
-                    try {
-                        await updateDoc(doc(db, 'rooms', currentRoomId), { status: 'finished' });
-                    } catch(e) {}
-                }, 1000);
-            }
+            // Anyone can finish the game if all have answered
+            setTimeout(async () => {
+                if (!currentRoomId) return;
+                try {
+                    const roomRef = doc(db, 'rooms', currentRoomId);
+                    const freshSnap = await getDoc(roomRef);
+                    if (!freshSnap.exists() || freshSnap.data().status === 'finished') return;
+                    
+                    await updateDoc(roomRef, { status: 'finished' });
+                } catch(e) {}
+            }, 1500);
         }
     }
 }
