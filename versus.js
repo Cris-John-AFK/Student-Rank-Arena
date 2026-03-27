@@ -80,7 +80,8 @@ async function startRandomMatchmaking() {
     // Look for existing 'random' room with 1 player
     try {
         const roomsRef = collection(db, 'rooms');
-        const q = query(roomsRef, where('type', '==', 'random'), where('status', '==', 'lobby'), where('playerCount', '==', 1));
+        // Simplified query to avoid complex indexing requirements
+        const q = query(roomsRef, where('matchStatus', '==', 'searching_random'));
         const snapshot = await getDocs(q);
 
         if (!snapshot.empty) {
@@ -109,6 +110,7 @@ async function createRoom(type, customId = null) {
     const initialData = {
         type: type,
         status: 'lobby',
+        matchStatus: type === 'random' ? 'searching_random' : 'private',
         playerCount: 1,
         players: {
             [myPlayerId]: {
@@ -123,12 +125,18 @@ async function createRoom(type, customId = null) {
     };
 
     try {
-        await setDoc(doc(db, 'rooms', roomId), initialData);
+        const roomRef = doc(db, 'rooms', roomId);
+        await setDoc(roomRef, initialData);
         
+        // 🔥 FIX: Actually show the lobby screen!
+        showVsScreen('lobby');
+
         if (type === 'private') {
             document.getElementById('room-code-display').style.display = 'block';
             document.getElementById('share-code').textContent = roomId;
             document.getElementById('lobby-status').textContent = "Waiting for friend...";
+        } else {
+            document.getElementById('lobby-status').textContent = "Searching for opponent...";
         }
 
         listenToRoom(roomId);
@@ -160,6 +168,7 @@ async function joinRoom(roomId) {
         return;
     }
 
+    // If joining, clear the searching status so no one else joins
     await updateDoc(roomRef, {
         [`players.${myPlayerId}`]: {
             name: auth.currentUser.displayName || "Gladiator",
@@ -167,7 +176,8 @@ async function joinRoom(roomId) {
             status: 'waiting',
             avatar: '⚡'
         },
-        playerCount: 2
+        playerCount: 2,
+        matchStatus: 'full' 
     });
 
     document.getElementById('vs-join-modal').classList.remove('visible');
