@@ -451,38 +451,45 @@ function calculateResult() {
     let type = '', rarity = '', description = '', focus = 0, social = 0, clutch = 0, strongTrait = '';
     let proTip = '';
 
-    // 🔥 NEW SCORING: High Score = Academic Weapon (100)
+    // 🔥 NEW SCORING: Granular Academic Paradigm
     if (totalScore >= 85) {
         type = 'Academic Weapon 🔥';
-        finalRank = Math.floor(Math.random() * 5) + 1;
+        finalRank = Math.floor(Math.random() * 5) + 1; // Top 1-5%
         rarity = finalRank === 1 ? 'Diamond Tier 💎 (One of a Kind)' : 'Legendary 🌟';
         description = "You're a rare breed of student who balances discipline with raw ambition. You don't just pass; you dominate. Your focus is legendary.";
         focus = 95; social = 50; clutch = 40; strongTrait = 'Discipline 🛡️';
         proTip = "Take breaks! Even weapons need maintenance to avoid burnout.";
-    } else if (totalScore >= 70) {
+    } else if (totalScore >= 75) {
         type = 'The Overachiever 🧠';
-        finalRank = Math.floor(Math.random() * 10) + 5;
+        finalRank = Math.floor(Math.random() * 10) + 6; // Top 6-15%
         rarity = 'Top-Tier 🥇';
         description = "Solid, reliable, and hardworking. You might not be a 'genius' in your own eyes, but your consistency puts you ahead of 80% of students.";
         focus = 85; social = 60; clutch = 30; strongTrait = 'Consistency 📈';
         proTip = "Try teaching others what you learn; it will solidify your top-tier rank.";
+    } else if (totalScore >= 60) {
+        type = 'The Strategist ♟️';
+        finalRank = Math.floor(Math.random() * 15) + 16; // Top 16-30%
+        rarity = 'Rare 🔮';
+        description = "You know exactly what to study and what to skip to secure a good grade. You maximize output while minimizing unnecessary mental strain.";
+        focus = 75; social = 70; clutch = 50; strongTrait = 'Optimization ⚙️';
+        proTip = "Don't let your strategy drift into laziness. Stay sharp!";
     } else if (totalScore >= 45) {
         type = 'The Consistent Grinder 📚';
-        finalRank = Math.floor(Math.random() * 20) + 20;
+        finalRank = Math.floor(Math.random() * 15) + 31; // Top 31-45%
         rarity = 'Uncommon ✨';
-        description = "You have the talent but prefer the easy life. You do 'just enough' to stay safe. You're the master of the minimum effort, maximum result.";
-        focus = 70; social = 85; clutch = 60; strongTrait = 'Efficiency ⚡';
+        description = "You have the talent but prefer the balanced life. You do 'just enough' to stay safe. You're the master of the minimum effort, maximum result.";
+        focus = 60; social = 85; clutch = 60; strongTrait = 'Efficiency ⚡';
         proTip = "Imagine what you could do if you gave just 10% more effort.";
-    } else if (totalScore >= 20) {
+    } else if (totalScore >= 25) {
         type = 'The Chill Passer 😌';
-        finalRank = Math.floor(Math.random() * 30) + 40;
+        finalRank = Math.floor(Math.random() * 25) + 46; // Top 46-70%
         rarity = 'Common 📉';
         description = "Living on the edge! You ignore everything for 3 weeks and then finish the whole semester in one night of pure adrenaline.";
-        focus = 40; social = 40; clutch = 90; strongTrait = 'Clutch Chaos 🎢';
+        focus = 40; social = 50; clutch = 90; strongTrait = 'Clutch Chaos 🎢';
         proTip = "Your heart won't last forever at this rate; start 2 days earlier next time.";
     } else {
         type = 'Chaos Tier Ghost 👻';
-        finalRank = Math.floor(Math.random() * 20) + 75;
+        finalRank = Math.floor(Math.random() * 25) + 71; // Top 71-95%
         rarity = 'Low Stakes 🍃';
         description = "A true chaos tier student. You probably aren't even sure what course you're taking, yet somehow you're still here. Respect.";
         focus = 10; social = 95; clutch = 100; strongTrait = 'Pure Luck 🍀';
