@@ -533,13 +533,13 @@ function calculateResult() {
 async function handleSaveResult() {
     let emailKey = currentUser?.email || null;
 
-    if (!currentUser) {
-        // Show the beautiful modal instead of browser prompt
+    if (!currentUser || (currentUser?.isAnonymous && !currentUser?.displayName)) {
+        // Show the beautiful modal for new unauthenticated users OR ghost sessions missing a name
         modals['guest'].classList.add('visible');
         return; // Execution stops here and waits for the modal form submission
     }
 
-    await completeSaveResult(null); // Pass null for guestNick since authenticated
+    await completeSaveResult(null); // Pass null since authenticated (either email or established guest)
 }
 
 async function completeSaveResult(guestNick) {

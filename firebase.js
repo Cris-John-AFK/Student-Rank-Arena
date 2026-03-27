@@ -151,6 +151,13 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
                 if (aUser) {
                     userId = aUser.uid; 
                     resultData.userId = userId;
+                    
+                    // 💾 Identity Persistence: Lock their typed nickname into their anonymous profile
+                    if (guestNickname && aUser.displayName !== guestNickname) {
+                        try {
+                            await updateProfile(aUser, { displayName: guestNickname });
+                        } catch(e) { console.warn('Failed to lock guest nickname:', e); }
+                    }
                 }
             }
 
