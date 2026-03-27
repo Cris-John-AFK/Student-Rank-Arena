@@ -258,7 +258,12 @@ async function renderLeaderboard(tab) {
         
         let medal = `#${index + 1}`;
         if (isEloTab) {
-            medal = entry.absoluteRank ? `#${entry.absoluteRank}` : `#?`;
+            // Priority: use the calculated sequential rank based on the sorted array
+            medal = `#${index + 1}`;
+            // If we have an absolute rank offset from the world count, apply it
+            if (entry.absoluteRank) {
+                medal = `#${entry.absoluteRank}`;
+            }
         } else if (index < 3) {
             medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
         }

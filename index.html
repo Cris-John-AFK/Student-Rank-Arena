@@ -633,12 +633,23 @@
         </div>
         <div class="ad-space ad-footer mt-2">
             <ins class="adsbygoogle"
-                 style="display:block; width:100%; height:100%;"
+                 style="display:block; min-width: 300px; min-height: 90px;"
                  data-ad-client="ca-pub-6927411315527774"
                  data-ad-slot="8854294480"
                  data-ad-format="auto"
                  data-full-width-responsive="true"></ins>
-            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            <script>
+                (function() {
+                    const pushAd = () => {
+                        try {
+                            const ins = document.querySelector('.ad-footer .adsbygoogle');
+                            if (ins && ins.clientWidth > 10) (adsbygoogle = window.adsbygoogle || []).push({});
+                            else setTimeout(pushAd, 800);
+                        } catch(e) {}
+                    };
+                    pushAd();
+                })();
+            </script>
         </div>
     </div>
     
