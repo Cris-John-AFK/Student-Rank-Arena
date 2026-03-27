@@ -294,3 +294,26 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
 .pro-tip { margin-top: 1.2rem; background: rgba(139, 92, 246, 0.1); padding: 0.8rem; border-radius: 8px; border-left: 3px solid #8b5cf6; }
 .pro-tip strong { display: block; font-size: 0.85rem; margin-bottom: 3px; color: #a78bfa; }
 .pro-tip p { font-size: 0.85rem; margin: 0; line-height: 1.4; }
+
+/* 🌟 Developer Achievement Ranks 🌟 */
+.creator-border {
+    border: 3px solid #ffd700 !important;
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.6), inset 0 0 15px rgba(255, 215, 0, 0.2) !important;
+}
+
+@keyframes rgb-border {
+    0% { border-color: red; box-shadow: 0 0 20px red; }
+    33% { border-color: lime; box-shadow: 0 0 20px lime; }
+    66% { border-color: blue; box-shadow: 0 0 20px blue; }
+    100% { border-color: red; box-shadow: 0 0 20px red; }
+}
+
+.extreme-border {
+    border: 3px solid transparent !important;
+    animation: rgb-border 3s linear infinite !important;
+}
+
+.void-border {
+    border: 3px solid #4c00ff !important;
+    box-shadow: 0 0 30px rgba(76, 0, 255, 0.8), inset 0 0 20px rgba(76, 0, 255, 0.3) !important;
+}

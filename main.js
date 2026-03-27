@@ -1,4 +1,5 @@
 import { questions } from './questions.js';
+import { studentTypesDict } from './studentTypes.js';
 import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData } from './firebase.js';
 
 // ====== DOM Screens ======
@@ -244,8 +245,18 @@ async function renderLeaderboard(tab) {
         let nameDisplay = entry.displayName;
         if (isMe) nameDisplay += " (You)";
 
+        // Developer Achievements
+        const isCreator = entry.type && entry.type.includes('The Creator');
+        const isExtreme = entry.type && entry.type.includes('The Extreme');
+        const isVoid = entry.type && entry.type.includes('The Void Master');
+        
+        let devClass = '';
+        if (isCreator) devClass = 'creator-border';
+        else if (isExtreme) devClass = 'extreme-border';
+        else if (isVoid) devClass = 'void-border';
+
         return `
-            <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''}">
+            <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''} ${devClass}">
                 <div class="lb-rank ${rankClass}">${medal}</div>
                 <div class="lb-info">
                     <div class="lb-name">${nameDisplay} ${entry.isPremium ? '⭐' : ''}</div>
@@ -266,6 +277,19 @@ async function renderLeaderboard(tab) {
 
     list.innerHTML = html;
     teaser.style.display = 'none'; // Replaced premium teaser with 20-limit for all
+}
+
+function updateProfileStatsUI(score, rank, type) {
+    document.getElementById('prof-best-score').textContent = score === 'No quiz yet' ? score : `${score}/100`;
+    document.getElementById('prof-best-rank').textContent = rank === '—' ? rank : `Top ${rank}%`;
+    document.getElementById('prof-type').textContent = type;
+    
+    const panel = document.getElementById('profile').querySelector('.glass-panel');
+    panel.classList.remove('creator-border', 'extreme-border', 'void-border');
+    
+    if (type && type.includes('The Creator')) panel.classList.add('creator-border');
+    else if (type && type.includes('The Extreme')) panel.classList.add('extreme-border');
+    else if (type && type.includes('The Void Master')) panel.classList.add('void-border');
 }
 
 // ====== Profile ======
@@ -309,20 +333,14 @@ async function openProfile() {
     if (myResults.length > 0) {
         // Find best score (Highest score is best in our new ranking)
         const best = myResults.reduce((a, b) => a.score > b.score ? a : b);
-        document.getElementById('prof-best-score').textContent = `${best.score}/100`;
-        document.getElementById('prof-best-rank').textContent = `Top ${best.rank}%`;
-        document.getElementById('prof-type').textContent = best.type;
+        updateProfileStatsUI(best.score, best.rank, best.type);
     } else {
         // 🔑 Second chance: check their direct user document
         const userData = await getUserProfileData(currentUser.email);
         if (userData && (userData.lastScore !== undefined)) {
-            document.getElementById('prof-best-score').textContent = `${userData.lastScore}/100`;
-            document.getElementById('prof-best-rank').textContent = `Top ${userData.lastRank}%`;
-            document.getElementById('prof-type').textContent = userData.lastType || '—';
+            updateProfileStatsUI(userData.lastScore, userData.lastRank, userData.lastType || '—');
         } else {
-            document.getElementById('prof-best-score').textContent = 'No quiz yet';
-            document.getElementById('prof-best-rank').textContent = '—';
-            document.getElementById('prof-type').textContent = '—';
+            updateProfileStatsUI('No quiz yet', '—', '—');
         }
     }
 
@@ -451,50 +469,16 @@ function calculateResult() {
     let type = '', rarity = '', description = '', focus = 0, social = 0, clutch = 0, strongTrait = '';
     let proTip = '';
 
-    // 🔥 NEW SCORING: Granular Academic Paradigm
-    if (totalScore >= 85) {
-        type = 'Academic Weapon 🔥';
-        finalRank = Math.floor(Math.random() * 5) + 1; // Top 1-5%
-        rarity = finalRank === 1 ? 'Diamond Tier 💎 (One of a Kind)' : 'Legendary 🌟';
-        description = "You're a rare breed of student who balances discipline with raw ambition. You don't just pass; you dominate. Your focus is legendary.";
-        focus = 95; social = 50; clutch = 40; strongTrait = 'Discipline 🛡️';
-        proTip = "Take breaks! Even weapons need maintenance to avoid burnout.";
-    } else if (totalScore >= 75) {
-        type = 'The Overachiever 🧠';
-        finalRank = Math.floor(Math.random() * 10) + 6; // Top 6-15%
-        rarity = 'Top-Tier 🥇';
-        description = "Solid, reliable, and hardworking. You might not be a 'genius' in your own eyes, but your consistency puts you ahead of 80% of students.";
-        focus = 85; social = 60; clutch = 30; strongTrait = 'Consistency 📈';
-        proTip = "Try teaching others what you learn; it will solidify your top-tier rank.";
-    } else if (totalScore >= 60) {
-        type = 'The Strategist ♟️';
-        finalRank = Math.floor(Math.random() * 15) + 16; // Top 16-30%
-        rarity = 'Rare 🔮';
-        description = "You know exactly what to study and what to skip to secure a good grade. You maximize output while minimizing unnecessary mental strain.";
-        focus = 75; social = 70; clutch = 50; strongTrait = 'Optimization ⚙️';
-        proTip = "Don't let your strategy drift into laziness. Stay sharp!";
-    } else if (totalScore >= 45) {
-        type = 'The Consistent Grinder 📚';
-        finalRank = Math.floor(Math.random() * 15) + 31; // Top 31-45%
-        rarity = 'Uncommon ✨';
-        description = "You have the talent but prefer the balanced life. You do 'just enough' to stay safe. You're the master of the minimum effort, maximum result.";
-        focus = 60; social = 85; clutch = 60; strongTrait = 'Efficiency ⚡';
-        proTip = "Imagine what you could do if you gave just 10% more effort.";
-    } else if (totalScore >= 25) {
-        type = 'The Chill Passer 😌';
-        finalRank = Math.floor(Math.random() * 25) + 46; // Top 46-70%
-        rarity = 'Common 📉';
-        description = "Living on the edge! You ignore everything for 3 weeks and then finish the whole semester in one night of pure adrenaline.";
-        focus = 40; social = 50; clutch = 90; strongTrait = 'Clutch Chaos 🎢';
-        proTip = "Your heart won't last forever at this rate; start 2 days earlier next time.";
-    } else {
-        type = 'Chaos Tier Ghost 👻';
-        finalRank = Math.floor(Math.random() * 25) + 71; // Top 71-95%
-        rarity = 'Low Stakes 🍃';
-        description = "A true chaos tier student. You probably aren't even sure what course you're taking, yet somehow you're still here. Respect.";
-        focus = 10; social = 95; clutch = 100; strongTrait = 'Pure Luck 🍀';
-        proTip = "Check your email. Seriously. There are probably 50 missed deadlines.";
-    }
+    const dt = studentTypesDict[totalScore] || studentTypesDict[50];
+    type = dt.type;
+    description = dt.desc;
+    strongTrait = dt.trait;
+    focus = dt.focus;
+    social = dt.social;
+    clutch = dt.clutch;
+    
+    finalRank = Math.max(1, 101 - totalScore - Math.floor(Math.random() * 5)); 
+    proTip = totalScore > 80 ? "Keep dominating the curve!" : "Stay consistent, don't let up.";
 
     finalType = type;
     document.getElementById('result-type').textContent = finalType;
