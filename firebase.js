@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp, startAt, endAt, getCountFromServer, deleteField, or, and } from "firebase/firestore";
+import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, query, orderBy, limit, getDocs, where, serverTimestamp, startAt, endAt, getCountFromServer, deleteField, or, and } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
@@ -324,28 +324,51 @@ export async function getUserRankByField(field, value, myUid) {
     try {
         const resultsRef = collection(db, 'results');
         
-        // Tier 1: Quick count of everyone strictly better (Single-field index)
-        const qBetter = query(resultsRef, where(field, '>', value));
-        const snapBetter = await getCountFromServer(qBetter);
-        const countBetter = snapBetter.data().count || 0;
+        const q = query(resultsRef, where(field, '>=', value));
+        const snap = await getDocs(q);
+        
+        const rawResults = [];
+        snap.forEach(doc => {
+            const data = doc.data();
+            const id = data.userId || doc.id;
+            // Ghost-Filter: If this entry has a primary identity (email), skip the secondary (hash/guest) record
+            if (id && id.includes('@') && doc.id !== id) return;
+            rawResults.push({ ...data, id: doc.id });
+        });
 
-        // Tier 2: Resolving Ties without requiring a Composite Index (No multiple 'where' clauses)
-        // We fetch all users tied with this specific value and filter locally.
-        // This makes the ranking sequential (1, 2, 3...) even if 100 people have the same score.
-        let countSameBetter = 0;
-        if (myUid) {
-            const qSame = query(resultsRef, where(field, '==', value));
-            const snapSame = await getDocs(qSame);
-            snapSame.forEach(doc => {
-                const uid = doc.data().userId || doc.id;
-                if (uid < myUid) countSameBetter++;
-            });
-        }
+        // 🎯 Sort by score desc BEFORE deduplicating so we always keep the best record for that identity
+        rawResults.sort((a, b) => (b[field] || 0) - (a[field] || 0));
 
-        return countBetter + countSameBetter + 1;
+        const uniqueStudents = [];
+        const seenNames = new Set();
+        const seenIds = new Set();
+        
+        rawResults.forEach(data => {
+            const name = (data.displayName || "").toLowerCase();
+            const id = data.userId || data.id;
+            
+            // Deduplicate: If we've seen this name OR ID already, skip it (keeps the best one)
+            if (seenNames.has(name) || seenIds.has(id)) return;
+            
+            seenNames.add(name);
+            seenIds.add(id);
+            uniqueStudents.push(data);
+        });
+
+        // Final tie-breaker sort for sequential rank (Matches leaderboard list)
+        uniqueStudents.sort((a, b) => {
+            if (b[field] !== a[field]) return b[field] - a[field];
+            const idA = a.userId || a.id;
+            const idB = b.userId || b.id;
+            return idA < idB ? -1 : 1;
+        });
+
+        const myIndex = uniqueStudents.findIndex(s => (s.userId || s.id) === myUid);
+        return myIndex !== -1 ? myIndex + 1 : uniqueStudents.length + 1;
+
     } catch (e) { 
-        console.error(`Sequential rank lookup (${field}) failed:`, e); 
-        return 1; // Default to #1 if lookup fails rather than #0
+        console.error(`Deduplicated rank lookup (${field}) failed:`, e); 
+        return 1;
     }
 }
 

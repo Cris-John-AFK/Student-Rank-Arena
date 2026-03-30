@@ -233,22 +233,24 @@ async function renderLeaderboard(tab) {
             getUserEloRank(myElo)
         ]);
 
-        // Merge + Strict Local Deduplication (by ID AND Nickname)
+        const combined = [...top3, ...aroundMe];
+        combined.sort((a, b) => (b.elo || 500) - (a.elo || 500));
+
         const seenNames = new Set();
         const seenIds = new Set();
         displayData = [];
 
-        [...top3, ...aroundMe].forEach(d => {
+        combined.forEach(d => {
             const name = (d.displayName || "Unknown").toLowerCase();
             const id = d.userId || d.id;
-            if (!seenNames.has(name) && !seenIds.has(id)) {
-                seenNames.add(name);
-                seenIds.add(id);
-                displayData.push(d);
-            }
+            
+            // Deduplicate: Prioritize the highest ELO records
+            if (seenNames.has(name) || seenIds.has(id)) return;
+            
+            seenNames.add(name);
+            seenIds.add(id);
+            displayData.push(d);
         });
-        
-        displayData.sort((a, b) => (b.elo || 500) - (a.elo || 500));
 
         // Rank the slice sequentially
         const myIndex = displayData.findIndex(d => (d.userId === myId || d.id === myId));
@@ -259,13 +261,21 @@ async function renderLeaderboard(tab) {
         }
     } else {
         const raw = await fetchLeaderboard('score', 50);
-        // Deduplicate score list by name as well
-        const seen = new Set();
-        displayData = raw.filter(d => {
+        
+        // 🎯 Identity Deduplication: Ensure each student appears only once
+        const seenN = new Set();
+        const seenI = new Set();
+        displayData = [];
+        
+        raw.forEach(d => {
             const n = (d.displayName || "Unknown").toLowerCase();
-            if (seen.has(n)) return false;
-            seen.add(n);
-            return true;
+            const id = d.userId || d.id;
+            
+            if (seenN.has(n) || seenI.has(id)) return;
+            
+            seenN.add(n);
+            seenI.add(id);
+            displayData.push(d);
         });
     }
     
