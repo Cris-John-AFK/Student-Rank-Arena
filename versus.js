@@ -1,6 +1,6 @@
 import { questions } from './questions.js';
 import { db, auth, isFirebaseConfigured, getPersistentId } from './firebase.js';
-import { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, deleteDoc, serverTimestamp, query, where, limit, getDocs, deleteField } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, deleteDoc, serverTimestamp, query, where, limit, getDocs, deleteField, FieldPath } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 
 let currentRoomId = null;
@@ -372,8 +372,8 @@ async function prepareGame(categoryId) {
         });
     } catch (e) {
         console.error("Prep failed", e);
-        // Retry once after 2500ms
-        setTimeout(() => prepareGame(categoryId), 2500);
+        // Force minimum 5s to clear the OpenTDB rate limiter completely
+        setTimeout(() => prepareGame(categoryId), 5500);
     }
 }
 
@@ -390,7 +390,8 @@ function renderVsQuestion() {
         const btn = document.createElement('button');
         btn.className = 'option-btn';
         btn.innerHTML = opt;
-        btn.onclick = () => submitVsAnswer(opt === q.correct);
+        btn.dataset.rawopt = opt;
+        btn.onclick = () => submitVsAnswer(opt === q.correct, opt);
         container.appendChild(btn);
     });
 
@@ -417,7 +418,7 @@ function startVsTimer() {
     }, 100); // Update every 100ms
 }
 
-async function submitVsAnswer(isCorrect) {
+async function submitVsAnswer(isCorrect, selectedOpt = null) {
     if (!currentRoomId) return;
     if (vsTimerInterval) clearInterval(vsTimerInterval);
     
@@ -427,10 +428,10 @@ async function submitVsAnswer(isCorrect) {
     const options = document.querySelectorAll('#vs-options .option-btn');
     options.forEach(b => {
         b.disabled = true;
-        // Visual feedback
+        // Visual feedback - bypasses encoded HTML entities safely
         const q = vsQuestions[vsCurrentIndex];
-        if (b.innerHTML === q.correct) b.style.borderColor = 'var(--success)';
-        else if (b.disabled && !isCorrect) b.style.opacity = '0.5';
+        if (b.dataset.rawopt === q.correct) b.style.borderColor = 'var(--success)';
+        else if (b.disabled && b.dataset.rawopt === selectedOpt) b.style.opacity = '0.5';
     });
 
     try {
@@ -438,10 +439,12 @@ async function submitVsAnswer(isCorrect) {
         // Set local score too for instant UI feedback
         document.getElementById('vs-my-score').textContent = vsScore;
         
-        await updateDoc(roomRef, {
-            [`players.${myPlayerId}.score`]: vsScore,
-            [`players.${myPlayerId}.status`]: 'answered'
-        });
+        // Use FieldPath to SAFELY update without breaking dot notation if email contains '.'
+        await updateDoc(
+            roomRef, 
+            new FieldPath('players', myPlayerId, 'score'), vsScore,
+            new FieldPath('players', myPlayerId, 'status'), 'answered'
+        );
     } catch(e) {
         console.log("Submit ignored: Room likely already closed.");
     }
