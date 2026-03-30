@@ -213,6 +213,8 @@ function openLeaderboard() {
     renderLeaderboard('top'); // Default to 'top' tab
 }
 
+window._leaderboardCache = {};
+
 async function renderLeaderboard(tab) {
     const list = document.getElementById('leaderboard-list');
     const teaser = document.getElementById('lb-premium-teaser');
@@ -298,9 +300,12 @@ async function renderLeaderboard(tab) {
             ? studentTypesDict[entry.score].type
             : (entry.type || '—');
 
+        const cacheId = entry.userId || entry.id || `temp-${index}`;
+        window._leaderboardCache[cacheId] = { ...entry, absoluteRank: (entry.absoluteRank || (index + 1)) };
+
         return `
             <div class="lb-row ${entry.isPremium ? 'premium-row' : ''} ${isMe ? 'highlight-me' : ''} ${devClass}" 
-                 onclick='window._openPublicProfile(${JSON.stringify({...entry, absoluteRank: (entry.absoluteRank || (index+1))}).replace(/'/g, "&apos;")})'>
+                 onclick="window._openPublicProfile(window._leaderboardCache['${cacheId}'])">
                 <div class="lb-rank">${medal}</div>
                 <div class="lb-info">
                     <div class="lb-name">${nameDisplay} ${entry.isPremium ? '⭐' : ''}</div>
