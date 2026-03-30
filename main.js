@@ -241,7 +241,7 @@ async function renderLeaderboard(tab) {
     }
     
     list.innerHTML = '';
-    
+
     // Custom row creator
     const createRowHTML = (entry, index, isMe) => {
         const isEloTab = tab === 'elo';
@@ -255,14 +255,24 @@ async function renderLeaderboard(tab) {
         let nameDisplay = entry.displayName || "Unknown";
         if (isMe) nameDisplay += " (You)";
 
-        const isCreator = entry.achievement?.includes('The Creator') || entry.type?.includes('The Creator');
-        const isExtreme = entry.achievement?.includes('The Extreme') || entry.type?.includes('The Extreme');
-        const isVoid = entry.achievement?.includes('The Void Master') || entry.type?.includes('The Void Master');
+        const isCreator = entry.achievement?.includes('The Creator');
+        const isExtreme = entry.achievement?.includes('The Extreme');
+        const isVoid = entry.achievement?.includes('The Void Master');
         
         let devClass = isCreator ? 'creator-border' : isExtreme ? 'extreme-border' : isVoid ? 'void-border' : '';
         let displayType = (entry.score !== undefined && studentTypesDict[entry.score])
             ? studentTypesDict[entry.score].type
             : (entry.type || '—');
+
+        // Build achievement pill — very highlighted, style matches the border type
+        let achievementPill = '';
+        if (entry.achievement) {
+            let pillStyle = '';
+            if (isCreator)      pillStyle = 'background:linear-gradient(135deg,#ffd700,#ff8c00);color:#000;text-shadow:none;box-shadow:0 0 12px rgba(255,215,0,0.8);';
+            else if (isExtreme) pillStyle = 'background:linear-gradient(90deg,#f00,#ff0,#0f0,#00f,#f00);background-size:200%;animation:rgbBorder 1.5s linear infinite;color:#fff;animation:rgbBorder 3s linear infinite;';
+            else if (isVoid)    pillStyle = 'background:linear-gradient(135deg,#4c00ff,#1a0080);color:#fff;box-shadow:0 0 12px rgba(76,0,255,0.9);';
+            achievementPill = `<span style="display:inline-block;padding:2px 10px;border-radius:99px;font-size:0.7rem;font-weight:900;letter-spacing:0.5px;margin-right:4px;${pillStyle}">${entry.achievement}</span>`;
+        }
 
         const cacheId = entry.userId || entry.id || `temp-${index}`;
         window._leaderboardCache[cacheId] = { ...entry, absoluteRank: (entry.absoluteRank || (index + 1)) };
@@ -273,7 +283,7 @@ async function renderLeaderboard(tab) {
                 <div class="lb-rank">${medal}</div>
                 <div class="lb-info">
                     <div class="lb-name">${nameDisplay} ${entry.isPremium ? '⭐' : ''}</div>
-                    <div class="lb-type">${isEloTab ? '🧠 Elo Knowledge' : displayType}</div>
+                    <div class="lb-type" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:3px;">${achievementPill}<span style="color:var(--text-muted);font-size:0.75rem;">${isEloTab ? '🧠 Elo Knowledge' : displayType}</span></div>
                 </div>
                 <div class="lb-score" style="color:${isEloTab?'var(--accent)':'white'};">${rankValue}</div>
             </div>
@@ -412,82 +422,85 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
 }
 
 // ====== Public Profile Viewer ======
-window._openPublicProfile = function(entry) {
+window._openPublicProfile = async function(entry) {
     const modal = document.getElementById('public-profile-modal');
     if (!modal) return;
 
-    // 1. Core Info
-    const pName = document.getElementById('public-name');
-    if (pName) pName.textContent = entry.displayName || 'Unknown';
-    
-    const liveType = (entry.score !== undefined && studentTypesDict[entry.score])
-        ? studentTypesDict[entry.score].type
-        : (entry.type || '—');
-    const pType = document.getElementById('public-type');
-    if (pType) pType.textContent = liveType;
-    
-    const badge = document.getElementById('public-badge');
-    if (badge) {
-        badge.textContent = entry.isPremium ? '⭐ Premium' : 'Free';
-        badge.style.background = entry.isPremium ? 'linear-gradient(135deg, #6366f1, #ec4899)' : '';
-        badge.style.color = entry.isPremium ? 'white' : '';
-    }
-
-    // 🔥 Dual-Rank Analytics Matrix (Matching the user's 2x2 drawing)
-    const pElo = document.getElementById('public-elo');
-    const pEloWorldRank = document.getElementById('public-world-rank');
-    const pScore = document.getElementById('public-score');
-    const pScoreWorldRank = document.getElementById('public-score-rank');
-
-    const eloValue = entry.elo || 500;
-    const scoreValue = entry.score !== undefined ? entry.score : 0;
-
-    if (pElo) pElo.textContent = eloValue;
-    if (pScore) pScore.textContent = `${scoreValue}/100`;
-
-    const currentTab = document.querySelector('.lb-tab.active')?.getAttribute('data-tab') || 'score';
-
-    // 🏆 Concurrent Rank Resolution: Fetch BOTH world tiers for the full 2x2 matrix
-    if (pEloWorldRank) {
-        pEloWorldRank.textContent = '#—';
-        // If we opened this profile FROM the Elo leaderboard, we already have the sequential rank
-        if (currentTab === 'elo' && entry.absoluteRank) {
-            pEloWorldRank.textContent = `#${entry.absoluteRank}`;
-        } else {
-            getUserRankByField('elo', eloValue, entry.userId || entry.id).then(r => { 
-                if(pEloWorldRank) pEloWorldRank.textContent = `#${r}`; 
-            });
-        }
-    }
-
-    if (pScoreWorldRank) {
-        pScoreWorldRank.textContent = '#—';
-        // If we opened this profile FROM the Assessment leaderboard, we already have the sequential rank
-        if (currentTab === 'score' && entry.absoluteRank) {
-            pScoreWorldRank.textContent = `#${entry.absoluteRank}`;
-        } else {
-            getUserRankByField('score', scoreValue, entry.userId || entry.id).then(r => { 
-                if(pScoreWorldRank) pScoreWorldRank.textContent = `#${r}`; 
-            });
-        }
-    }
-
-    const currentEarned = entry.earnedScores || [];
-    const fallbackScore = entry.bestScore || entry.score || entry.lastScore;
-    const allScores = [...new Set([...currentEarned, fallbackScore].filter(x => x !== undefined && x !== null))];
-
-    renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', allScores);
-    
-    const panel = modal.querySelector('.glass-panel');
-    if (panel) {
-        panel.classList.remove('creator-border', 'extreme-border', 'void-border');
-        const combinedStr = (liveType || '') + (entry.achievement || '');
-        if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
-        else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
-        else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
-    }
-    
+    // Show modal immediately with cached data
     modal.classList.add('visible');
+
+    // Render from cache first (instant)
+    const renderProfile = (data) => {
+        const pName = document.getElementById('public-name');
+        if (pName) pName.textContent = data.displayName || 'Unknown';
+
+        const liveType = (data.score !== undefined && studentTypesDict[data.score])
+            ? studentTypesDict[data.score].type
+            : (data.type || data.lastType || '—');
+        const pType = document.getElementById('public-type');
+        if (pType) pType.textContent = liveType;
+
+        const badge = document.getElementById('public-badge');
+        if (badge) {
+            badge.textContent = data.isPremium ? '⭐ Premium' : 'Free';
+            badge.style.background = data.isPremium ? 'linear-gradient(135deg, #6366f1, #ec4899)' : '';
+            badge.style.color = data.isPremium ? 'white' : '';
+        }
+
+        const pElo = document.getElementById('public-elo');
+        const pEloWorldRank = document.getElementById('public-world-rank');
+        const pScore = document.getElementById('public-score');
+        const pScoreWorldRank = document.getElementById('public-score-rank');
+
+        const eloValue = data.elo || 500;
+        // Prefer bestScore over score for most accurate display
+        const scoreValue = data.bestScore ?? data.score ?? 0;
+
+        if (pElo) pElo.textContent = eloValue;
+        if (pScore) pScore.textContent = `${scoreValue}/100`;
+
+        if (pEloWorldRank) {
+            pEloWorldRank.textContent = '#—';
+            getUserRankByField('elo', eloValue, data.userId || data.id).then(r => {
+                if (pEloWorldRank) pEloWorldRank.textContent = `#${r}`;
+            });
+        }
+        if (pScoreWorldRank) {
+            pScoreWorldRank.textContent = '#—';
+            getUserRankByField('score', scoreValue, data.userId || data.id).then(r => {
+                if (pScoreWorldRank) pScoreWorldRank.textContent = `#${r}`;
+            });
+        }
+
+        // Merge ALL earnedScores sources
+        const earned = data.earnedScores || [];
+        const fallback = data.bestScore ?? data.score;
+        const allScores = [...new Set([...earned, fallback].filter(x => x !== undefined && x !== null))];
+        renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', allScores);
+
+        const panel = modal.querySelector('.glass-panel');
+        if (panel) {
+            panel.classList.remove('creator-border', 'extreme-border', 'void-border');
+            const a = data.achievement || '';
+            if (a.includes('The Creator')) panel.classList.add('creator-border');
+            else if (a.includes('The Extreme')) panel.classList.add('extreme-border');
+            else if (a.includes('The Void Master')) panel.classList.add('void-border');
+        }
+    };
+
+    // Step 1: Render cached data immediately
+    renderProfile(entry);
+
+    // Step 2: Silently fetch LIVE data & re-render (fixes stale Types Discovered)
+    try {
+        const liveId = entry.userId || entry.id;
+        if (liveId && isFirebaseConfigured) {
+            const freshData = await getUserProfileData(liveId);
+            if (freshData) {
+                renderProfile({ ...entry, ...freshData });
+            }
+        }
+    } catch(e) { console.warn('Live profile fetch failed, showing cached data', e); }
 };
 
 
