@@ -596,24 +596,32 @@ async function handleSaveProfileEdit(e) {
         console.error(err);
         showToast('❌ Update failed. Try again.');
     } finally {
-        btn.textContent = 'Save Changes';
-        btn.disabled = false;
+        const btn = document.getElementById('save-profile-edit-btn');
+        if(btn) {
+            btn.textContent = 'Save Changes';
+            btn.disabled = false;
+        }
     }
 }
 
 // ====== Profile ======
 async function openProfile() {
     showScreen('profile');
-    
     const myId = getPersistentId();
     const isGuest = !myId.includes('@');
 
-    // Clear stats while loading
-    document.getElementById('profile-elo').textContent = '...';
-    document.getElementById('profile-world-rank').textContent = '#...';
-    document.getElementById('profile-score').textContent = '...';
-    document.getElementById('profile-rank').textContent = '...';
-    document.getElementById('prof-type').textContent = '...';
+    // Clear stats with SKELETON indicators
+    const eloEl = document.getElementById('profile-elo');
+    const wRankEl = document.getElementById('profile-world-rank');
+    const scoreEl = document.getElementById('profile-score');
+    const sRankEl = document.getElementById('profile-score-rank');
+    const typeEl = document.getElementById('prof-type');
+
+    if (eloEl) eloEl.textContent = '...';
+    if (wRankEl) wRankEl.textContent = '#...';
+    if (scoreEl) scoreEl.textContent = '...';
+    if (sRankEl) sRankEl.textContent = '#...';
+    if (typeEl) typeEl.textContent = '...';
 
     // Fetch live data (Registered or Guest)
     const profile = await getUserProfileData(myId);
