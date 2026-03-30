@@ -48,7 +48,9 @@ export const generate100StudentTypes = () => {
             social = 100; focus = 0; clutch = 0;
         } else {
             const adj = adjs[i % adjs.length];
-            const noun = nouns[(i * 3) % nouns.length];
+            // 🎯 Use a non-cycle-matching offset (13 is prime relative to 12) to ensure 
+            // all 101 combinations are uniquely distinct archetypes.
+            const noun = nouns[(i + 13) % nouns.length];
             typeName = `${adj} ${noun} ${i > 80 ? '🔥' : (i > 50 ? '🧠' : '🍃')}`;
             
             if (i > 80) {
