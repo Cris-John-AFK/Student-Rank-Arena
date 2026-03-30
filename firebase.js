@@ -169,10 +169,21 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
             const saveData = { ...resultData, earnedScores: arrayUnion(score) };
             await setDoc(leaderboardRef, saveData, { merge: true });
             
-            // 🔥 IDENTITY CLEANUP: If registered, delete any old guest 'ghost' record for this session
+            // 🔥 IDENTITY MERGE & CLEANUP: 
+            // If registered, migrate any legacy guest 'earnedScores' before purging the ghost record
             const persistentId = getPersistentId();
             if (email && persistentId && persistentId !== email) {
-                try { await deleteDoc(doc(db, 'results', persistentId)); } catch(ee){}
+                try { 
+                    const guestRef = doc(db, 'results', persistentId);
+                    const guestSnap = await getDoc(guestRef);
+                    if (guestSnap.exists()) {
+                        const guestScores = guestSnap.data().earnedScores || [];
+                        if (guestScores.length > 0) {
+                            await updateDoc(leaderboardRef, { earnedScores: arrayUnion(...guestScores) });
+                        }
+                    }
+                    await deleteDoc(guestRef);
+                } catch(ee){ console.error("Identity Merge Error:", ee); }
             }
             
             return { success: true, displayName, userId: currentUserId, isNewElo, elo: eloToReturn };
