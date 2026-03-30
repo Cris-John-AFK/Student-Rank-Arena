@@ -79,14 +79,13 @@ export function initVersus() {
 
     document.getElementById('cancel-vs-btn').addEventListener('click', leaveRoom);
     document.getElementById('vs-back-btn').addEventListener('click', () => {
-        vsStatus = 'idle';
-        showVsScreen('landing');
+        leaveRoom();
     });
 }
 
 async function startRandomMatchmaking() {
     document.getElementById('vs-choice-modal').classList.remove('visible');
-    myPlayerId = auth.currentUser.uid;
+    myPlayerId = getPersistentId();
     showVsScreen('lobby');
     document.getElementById('lobby-status').textContent = "Searching for an opponent...";
     document.getElementById('room-code-display').style.display = 'none';
@@ -598,6 +597,19 @@ async function leaveRoom() {
             }
         } catch(e) { console.error("Exit failed", e); }
     }
+    
+    // Deep DOM Cleanup (Wipes slot machine & player placeholders)
+    document.getElementById('vs-topic-slot').style.display = 'none';
+    const strip = document.getElementById('slot-strip');
+    if (strip) {
+        strip.classList.remove('playing-slot');
+        strip.style.transform = 'translateY(0px)';
+    }
+    document.getElementById('p2-avatar').textContent = '❓';
+    document.getElementById('p2-name').textContent = 'Waiting...';
+    document.getElementById('lobby-status').textContent = "Searching for opponent...";
+    document.getElementById('vs-options').innerHTML = '';
+    
     vsStatus = 'idle';
     currentRoomId = null;
     showVsScreen('landing');
