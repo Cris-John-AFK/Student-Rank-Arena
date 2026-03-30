@@ -508,7 +508,9 @@ function finishVsGame(data) {
     const myScore = vsScore;
     const oppScore = vsOpponentScore;
 
+    document.getElementById('vs-final-my-score').textContent = myScore;
     document.getElementById('vs-final-opp-score').textContent = oppScore;
+    showVsScreen('result');
 
     const myEmail = auth.currentUser?.email;
     const pIds = Object.keys(data.players || {});
