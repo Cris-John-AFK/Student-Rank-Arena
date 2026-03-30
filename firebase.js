@@ -237,14 +237,23 @@ export async function updateEloAfterMatch(myId, opponentId, won, myScore, oppSco
 export async function getUserProfileData(id) {
     if (!id || !isFirebaseConfigured) return null;
     try {
-        // Try 'users' collection first (high priority for registered)
+        let combinedData = {};
+        
+        // 1. Get Competitive Data (Results collection) - master for scores/history
+        const resDoc = await getDoc(doc(db, 'results', id));
+        if (resDoc.exists()) {
+            combinedData = { ...resDoc.data() };
+        }
+
+        // 2. Get Account Data (Users collection) - master for names/premium status
         if (id.includes('@')) {
             const userDoc = await getDoc(doc(db, 'users', id));
-            if (userDoc.exists()) return userDoc.data();
+            if (userDoc.exists()) {
+                combinedData = { ...combinedData, ...userDoc.data() };
+            }
         }
-        // Fallback or Guest path: Check 'results' collection
-        const resDoc = await getDoc(doc(db, 'results', id));
-        return resDoc.exists() ? resDoc.data() : null;
+        
+        return Object.keys(combinedData).length > 0 ? combinedData : null;
     } catch (e) { console.error("Profile fetch failed:", e); return null; }
 }
 
