@@ -200,7 +200,7 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     }
 }
 
-export async function updateEloAfterMatch(myId, opponentId, won, myScore, oppScore) {
+export async function updateEloAfterMatch(myId, won, draw, correctCount) {
     if (!isFirebaseConfigured || !myId) return;
     try {
         const isEmail = myId.includes('@');
@@ -211,20 +211,24 @@ export async function updateEloAfterMatch(myId, opponentId, won, myScore, oppSco
         let myElo = 500;
         if (myUserRef) {
             const snap = await getDoc(myUserRef);
-            if (snap.exists()) myElo = snap.data().elo || 500;
+            if (snap.exists() && snap.data().elo) myElo = snap.data().elo;
             else {
                 const resSnap = await getDoc(myResRef);
-                if (resSnap.exists()) myElo = resSnap.data().elo || 500;
+                if (resSnap.exists() && resSnap.data().elo) myElo = resSnap.data().elo;
             }
         } else {
             const resSnap = await getDoc(myResRef);
-            if (resSnap.exists()) myElo = resSnap.data().elo || 500;
+            if (resSnap.exists() && resSnap.data().elo) myElo = resSnap.data().elo;
         }
         
         let change = 0;
-        if (myScore === oppScore) change = 0;
-        else if (won) change = 10 + (myScore * 2); 
-        else change = -(10 + (Math.max(0, 10 - myScore) * 2));
+        if (draw) {
+            change = 0;
+        } else if (won) {
+            change = correctCount; // + points for how many right 
+        } else {
+            change = -(10 - correctCount); // - points for how many wrong
+        }
 
         const newElo = Math.max(10, myElo + change);
         

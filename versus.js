@@ -15,6 +15,7 @@ let vsOpponentScore = 0;
 let vsStatus = 'idle'; // idle, matching, lobby, playing, finished
 let timeLeft = 10; // In seconds
 let antiHangInterval = null;
+let vsCorrectCount = 0;
 
 const BATTLE_TOPICS = [
     { id: 9, name: "General Knowledge", icon: "🌍" },
@@ -242,6 +243,7 @@ function listenToRoom(roomId) {
             vsQuestions = data.questions;
             vsStatus = 'playing';
             vsScore = 0;
+            vsCorrectCount = 0;
             vsOpponentScore = 0;
             showVsScreen('quiz');
             
@@ -422,6 +424,7 @@ async function submitVsAnswer(isCorrect, selectedOpt = null) {
     if (!currentRoomId) return;
     if (vsTimerInterval) clearInterval(vsTimerInterval);
     
+    if (isCorrect) vsCorrectCount++;
     let bonus = isCorrect ? Math.floor(timeLeft / 5) : 0; // max +10 bonus
     vsScore += isCorrect ? (10 + bonus) : 0;
 
@@ -507,15 +510,12 @@ function finishVsGame(data) {
 
     document.getElementById('vs-final-opp-score').textContent = oppScore;
 
-    const myEmail = auth.currentUser.email;
-    const pIds = Object.keys(data.players);
+    const myEmail = auth.currentUser?.email;
+    const pIds = Object.keys(data.players || {});
     const oppId = pIds.find(id => id !== myPlayerId);
-    const oppEmail = data.oppEmail; // Host should have stored this
 
-    // 🔥 Update ELO (Only once)
-    if (vsStatus === 'playing') {
-        processEloUpdate(myScore, oppScore, data);
-    }
+    // 🔥 Update ELO (Safe because finishVsGame is only called exactly once per transition)
+    processEloUpdate(myScore, oppScore, vsCorrectCount);
 
     const title = document.getElementById('vs-result-title');
     const msg = document.getElementById('vs-result-msg');
@@ -538,32 +538,25 @@ function finishVsGame(data) {
 }
 
 
-async function processEloUpdate(myScore, oppScore, roomData) {
-    if (!auth.currentUser?.email) return;
-    
-    // Find opponent ID
-    const pIds = Object.keys(roomData.players);
-    const oppId = pIds.find(id => id !== myPlayerId);
-    const oppPersistentId = roomData.playerEmails?.[oppId];
-
-    if (oppPersistentId) {
-        try {
-            const { updateEloAfterMatch } = await import('./firebase.js');
-            const won = myScore > oppScore;
-            const result = await updateEloAfterMatch(getPersistentId(), oppPersistentId, won, myScore, oppScore);
-            
-            if (result) {
-                const resultsScreen = document.getElementById('versus-result');
-                const eloDiv = document.createElement('div');
-                eloDiv.style.marginTop = '20px';
-                eloDiv.style.fontSize = '1.4rem';
-                eloDiv.style.fontWeight = '900';
-                eloDiv.style.color = result.change >= 0 ? '#10b981' : '#ef4444';
-                eloDiv.innerHTML = `Elo Change: ${result.change >= 0 ? '+' : ''}${result.change} 🚀<br><small style="color:white; font-size:0.8rem">New Elo: ${result.newElo}</small>`;
-                resultsScreen.querySelector('.quiz-container').appendChild(eloDiv);
-            }
-        } catch(e) { console.error("Elo display error", e); }
-    }
+async function processEloUpdate(myScore, oppScore, correctCount) {
+    try {
+        const { updateEloAfterMatch } = await import('./firebase.js');
+        const won = myScore > oppScore;
+        const draw = myScore === oppScore;
+        
+        const result = await updateEloAfterMatch(getPersistentId(), won, draw, correctCount);
+        
+        if (result) {
+            const resultsScreen = document.getElementById('versus-result');
+            const eloDiv = document.createElement('div');
+            eloDiv.style.marginTop = '20px';
+            eloDiv.style.fontSize = '1.4rem';
+            eloDiv.style.fontWeight = '900';
+            eloDiv.style.color = result.change >= 0 ? '#10b981' : '#ef4444';
+            eloDiv.innerHTML = `Elo Change: ${result.change >= 0 ? '+' : ''}${result.change} 🚀<br><small style="color:white; font-size:0.8rem">New Elo: ${result.newElo}</small>`;
+            resultsScreen.querySelector('.quiz-container').appendChild(eloDiv);
+        }
+    } catch(e) { console.error("Elo display error", e); }
 }
 
 async function leaveRoom() {
