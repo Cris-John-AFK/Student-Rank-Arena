@@ -480,12 +480,16 @@ function checkRoundOver(data) {
                     if (freshData.currentQuestionIndex >= nextIdx || freshData.status === 'finished') return;
 
                     if (nextIdx < 10) {
-                        const updates = {
+                        const currentPlayers = freshData.players || {};
+                        pIds.forEach(id => {
+                            if (currentPlayers[id]) currentPlayers[id].status = 'waiting';
+                        });
+                        
+                        await updateDoc(roomRef, {
                             currentQuestionIndex: nextIdx,
-                            lastRoundStart: serverTimestamp()
-                        };
-                        pIds.forEach(id => updates[`players.${id}.status`] = 'waiting');
-                        await updateDoc(roomRef, updates);
+                            lastRoundStart: serverTimestamp(),
+                            players: currentPlayers
+                        });
                     } else {
                         await updateDoc(roomRef, { status: 'finished' });
                     }
