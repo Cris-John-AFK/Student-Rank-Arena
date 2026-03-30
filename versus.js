@@ -14,6 +14,7 @@ let vsScore = 0;
 let vsOpponentScore = 0;
 let vsStatus = 'idle'; // idle, matching, lobby, playing, finished
 let timeLeft = 10; // In seconds
+let antiHangInterval = null;
 
 const BATTLE_TOPICS = [
     { id: 9, name: "General Knowledge", icon: "🌍" },
@@ -243,6 +244,12 @@ function listenToRoom(roomId) {
             vsScore = 0;
             vsOpponentScore = 0;
             showVsScreen('quiz');
+            
+            if (antiHangInterval) clearInterval(antiHangInterval);
+            antiHangInterval = setInterval(() => {
+                if (vsStatus !== 'playing') return;
+                checkRoundOver(data);
+            }, 3000);
         }
 
         // Live Question Sync
@@ -442,59 +449,52 @@ async function submitVsAnswer(isCorrect) {
 
 function checkRoundOver(data) {
     if (!currentRoomId) return;
-    const pIds = Object.keys(data.players);
+    const pIds = Object.keys(data.players || {});
+    if (pIds.length === 0) return;
+
     const allAnswered = pIds.every(id => data.players[id].status === 'answered');
 
-
-    // 🔥 ROUND GUARD: If time passed since round start, anyone can force next (anti-hang)
     let timedOut = false;
     if (data.lastRoundStart) {
         const startTime = data.lastRoundStart.toMillis ? data.lastRoundStart.toMillis() : Date.now();
         const elapsed = Date.now() - startTime;
-        if (elapsed > 12500) timedOut = true; // 10s quiz + 2.5s buffer
+        if (elapsed > 12500) timedOut = true;
     }
 
-    // Host or Client (as fallback) can trigger skip if timed out OR all answered
     if (allAnswered || (timedOut && currentRoomId)) {
         const nextIdx = data.currentQuestionIndex + 1;
-        if (nextIdx < 10) {
-            // Only host or designated 'secondary host' if timed out? 
-            // Better: Host triggers it, if host fails, client can trigger after 12s
-            if (isHost || (timedOut && Date.now() - (data.lastRoundStart.toMillis?.() || Date.now()) > 12000)) {
-                setTimeout(async () => {
-                    if (!currentRoomId) return;
-                    try {
-                        const roomRef = doc(db, 'rooms', currentRoomId);
-                        const freshSnap = await getDoc(roomRef);
-                        if (!freshSnap.exists() || freshSnap.data().currentQuestionIndex >= nextIdx) return;
-                        
-                        await updateDoc(roomRef, {
-                            currentQuestionIndex: nextIdx,
-                            lastRoundStart: serverTimestamp(),
-                            'players': Object.fromEntries(pIds.map(id => [id, { ...data.players[id], status: 'waiting' }]))
-                        });
-                    } catch(e) {}
-                }, 1000);
-            }
-        } else {
-            // LAST QUESTION FINISH
-            // Anyone can finish the game if all have answered
+        
+        // Host advances the game normally, or Client forces it if Host is dead
+        if (isHost || (timedOut && Date.now() - (data.lastRoundStart.toMillis?.() || Date.now()) > 12000)) {
             setTimeout(async () => {
                 if (!currentRoomId) return;
                 try {
                     const roomRef = doc(db, 'rooms', currentRoomId);
                     const freshSnap = await getDoc(roomRef);
-                    if (!freshSnap.exists() || freshSnap.data().status === 'finished') return;
+                    if (!freshSnap.exists()) return;
                     
-                    await updateDoc(roomRef, { status: 'finished' });
-                } catch(e) {}
-            }, 1500);
+                    const freshData = freshSnap.data();
+                    if (freshData.currentQuestionIndex >= nextIdx || freshData.status === 'finished') return;
+
+                    if (nextIdx < 10) {
+                        const updates = {
+                            currentQuestionIndex: nextIdx,
+                            lastRoundStart: serverTimestamp()
+                        };
+                        pIds.forEach(id => updates[`players.${id}.status`] = 'waiting');
+                        await updateDoc(roomRef, updates);
+                    } else {
+                        await updateDoc(roomRef, { status: 'finished' });
+                    }
+                } catch(e) { console.error("Round transition error:", e); }
+            }, 1000);
         }
     }
 }
 
 function finishVsGame(data) {
     vsStatus = 'finished';
+    if (antiHangInterval) clearInterval(antiHangInterval);
     const myScore = vsScore;
     const oppScore = vsOpponentScore;
 
@@ -561,6 +561,8 @@ async function processEloUpdate(myScore, oppScore, roomData) {
 
 async function leaveRoom() {
     if (roomListener) roomListener();
+    if (vsTimerInterval) clearInterval(vsTimerInterval);
+    if (antiHangInterval) clearInterval(antiHangInterval);
     if (currentRoomId) {
         try {
             const roomRef = doc(db, 'rooms', currentRoomId);
