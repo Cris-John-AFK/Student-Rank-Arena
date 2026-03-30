@@ -324,22 +324,29 @@ export async function getUserRankByField(field, value, myUid) {
     try {
         const resultsRef = collection(db, 'results');
         
-        // 1. Count all users with a strictly higher score/Elo
+        // Tier 1: Quick count of everyone strictly better (Single-field index)
         const qBetter = query(resultsRef, where(field, '>', value));
         const snapBetter = await getCountFromServer(qBetter);
         const countBetter = snapBetter.data().count || 0;
 
-        // 2. TIE-BREAKER: Count users with the EXACT same score but a 'smaller' userId (alphabetically)
-        // This ensures the ranking is ALWAYS unique and sequential (1, 2, 3...)
+        // Tier 2: Resolving Ties without requiring a Composite Index (No multiple 'where' clauses)
+        // We fetch all users tied with this specific value and filter locally.
+        // This makes the ranking sequential (1, 2, 3...) even if 100 people have the same score.
         let countSameBetter = 0;
         if (myUid) {
-            const qSame = query(resultsRef, where(field, '==', value), where('userId', '<', myUid));
-            const snapSame = await getCountFromServer(qSame);
-            countSameBetter = snapSame.data().count || 0;
+            const qSame = query(resultsRef, where(field, '==', value));
+            const snapSame = await getDocs(qSame);
+            snapSame.forEach(doc => {
+                const uid = doc.data().userId || doc.id;
+                if (uid < myUid) countSameBetter++;
+            });
         }
 
         return countBetter + countSameBetter + 1;
-    } catch (e) { console.error(`Sequential rank lookup (${field}) failed:`, e); return 0; }
+    } catch (e) { 
+        console.error(`Sequential rank lookup (${field}) failed:`, e); 
+        return 1; // Default to #1 if lookup fails rather than #0
+    }
 }
 
 export async function getUserEloRank(myElo, myUid) {

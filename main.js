@@ -471,23 +471,28 @@ window._openPublicProfile = function(entry) {
 
     const currentTab = document.querySelector('.lb-tab.active')?.getAttribute('data-tab') || 'score';
 
-    // 🏆 Elo World Rank Standing
+    // 🏆 Concurrent Rank Resolution: Fetch BOTH world tiers for the full 2x2 matrix
     if (pEloWorldRank) {
+        pEloWorldRank.textContent = '#—';
+        // If we opened this profile FROM the Elo leaderboard, we already have the sequential rank
         if (currentTab === 'elo' && entry.absoluteRank) {
             pEloWorldRank.textContent = `#${entry.absoluteRank}`;
         } else {
-            pEloWorldRank.textContent = '#—';
-            getUserRankByField('elo', eloValue, entry.userId || entry.id).then(r => { if(pEloWorldRank) pEloWorldRank.textContent = `#${r}`; });
+            getUserRankByField('elo', eloValue, entry.userId || entry.id).then(r => { 
+                if(pEloWorldRank) pEloWorldRank.textContent = `#${r}`; 
+            });
         }
     }
 
-    // 📝 Assessment World Rank Standing
     if (pScoreWorldRank) {
+        pScoreWorldRank.textContent = '#—';
+        // If we opened this profile FROM the Assessment leaderboard, we already have the sequential rank
         if (currentTab === 'score' && entry.absoluteRank) {
             pScoreWorldRank.textContent = `#${entry.absoluteRank}`;
         } else {
-            pScoreWorldRank.textContent = '#—';
-            getUserRankByField('score', scoreValue, entry.userId || entry.id).then(r => { if(pScoreWorldRank) pScoreWorldRank.textContent = `#${r}`; });
+            getUserRankByField('score', scoreValue, entry.userId || entry.id).then(r => { 
+                if(pScoreWorldRank) pScoreWorldRank.textContent = `#${r}`; 
+            });
         }
     }
 
