@@ -64,6 +64,11 @@ export function initVersus() {
         createPrivateRoom();
     });
 
+    document.getElementById('vs-join-friend-btn').addEventListener('click', () => {
+        document.getElementById('vs-choice-modal').classList.remove('visible');
+        document.getElementById('vs-join-modal').classList.add('visible');
+    });
+
     document.getElementById('vs-confirm-join').addEventListener('click', () => {
         const code = document.getElementById('vs-join-code').value.toUpperCase().trim();
         if (code.length === 6) joinRoom(code);

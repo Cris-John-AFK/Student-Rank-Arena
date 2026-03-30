@@ -481,21 +481,30 @@
             <h2 class="gradient-text mb-1">Battle Mode</h2>
             <p class="subtitle mb-3">Choose your destiny in the arena</p>
             
-            <div class="matchmaking-grid">
-                <button id="vs-random-btn" class="match-option-btn">
+            <div class="matchmaking-grid" style="display: flex; flex-direction: column; gap: 10px;">
+                <button id="vs-random-btn" class="match-option-btn w-100">
                     <div class="icon">🌍</div>
                     <div class="text">
                         <strong>Random Match</strong>
                         <span>Compete with strangers</span>
                     </div>
                 </button>
-                <button id="vs-friend-btn" class="match-option-btn">
-                    <div class="icon">🎟️</div>
-                    <div class="text">
-                        <strong>Invite Friend</strong>
-                        <span>Play with someone you know</span>
-                    </div>
-                </button>
+                <div style="display: flex; gap: 10px; width: 100%;">
+                    <button id="vs-friend-btn" class="match-option-btn w-100" style="flex: 1;">
+                        <div class="icon">🎟️</div>
+                        <div class="text">
+                            <strong>Host Friend</strong>
+                            <span>Create room code</span>
+                        </div>
+                    </button>
+                    <button id="vs-join-friend-btn" class="match-option-btn w-100" style="flex: 1;">
+                        <div class="icon">🔑</div>
+                        <div class="text">
+                            <strong>Join Friend</strong>
+                            <span>Enter room code</span>
+                        </div>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
