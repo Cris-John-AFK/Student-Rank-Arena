@@ -411,7 +411,16 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
     }
     
     if (bScoreEl) bScoreEl.textContent = (score !== undefined && score !== 'No quiz yet') ? `${score}/100` : '—';
-    if (bRankEl) bRankEl.textContent = rank === '—' ? rank : `Top ${rank}%`;
+    
+    const sRankEl = document.getElementById('profile-score-rank');
+    if (sRankEl) {
+        const myId = getPersistentId();
+        const scoreVal = (typeof score === 'number') ? score : 0;
+        sRankEl.textContent = '#—';
+        getUserRankByField('score', scoreVal, myId).then(r => {
+            sRankEl.textContent = `#${r}`;
+        });
+    }
     
     // Always derive type live from score dictionary
     const liveType = (typeof score === 'number' && studentTypesDict[score])
