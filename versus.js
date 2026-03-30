@@ -94,16 +94,53 @@ async function startRandomMatchmaking() {
     document.getElementById('p2-avatar').textContent = '❓';
     document.getElementById('p2-name').textContent = 'Waiting...';
 
-    // Look for existing 'random' room with 1 player
+    // 🔒 Atomic matchmaking using a Firestore Transaction
+    // This prevents the race condition where two users press Random at the same time
     try {
+        const { runTransaction } = await import("firebase/firestore");
         const roomsRef = collection(db, 'rooms');
-        // Simplified query to avoid complex indexing requirements
-        const q = query(roomsRef, where('matchStatus', '==', 'searching_random'));
+        const q = query(roomsRef, where('matchStatus', '==', 'searching_random'), limit(5));
         const snapshot = await getDocs(q);
 
-        if (!snapshot.empty) {
-            joinRoom(snapshot.docs[0].id);
-        } else {
+        let joined = false;
+        // Try to atomically claim a room
+        for (const roomDoc of snapshot.docs) {
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const freshSnap = await transaction.get(roomDoc.ref);
+                    if (!freshSnap.exists()) throw new Error("Room gone");
+                    const data = freshSnap.data();
+                    // Only join if still genuinely open (race-proof check)
+                    if (data.matchStatus !== 'searching_random' || data.playerCount !== 1) {
+                        throw new Error("Room already taken");
+                    }
+                    const joinerId = getPersistentId();
+                    transaction.update(roomDoc.ref, {
+                        [`players.${joinerId}`]: {
+                            name: auth.currentUser?.displayName || "Gladiator",
+                            score: 0,
+                            status: 'waiting',
+                            avatar: '⚡'
+                        },
+                        [`playerEmails.${joinerId}`]: joinerId,
+                        playerCount: 2,
+                        matchStatus: 'full'
+                    });
+                });
+                // Transaction succeeded — we're in!
+                joined = true;
+                isHost = false;
+                currentRoomId = roomDoc.id;
+                listenToRoom(roomDoc.id);
+                break;
+            } catch (txErr) {
+                // This room was claimed by someone else at the same instant; try next
+                continue;
+            }
+        }
+
+        if (!joined) {
+            // No open rooms found — we become the host
             createRoom('random');
         }
     } catch (e) {

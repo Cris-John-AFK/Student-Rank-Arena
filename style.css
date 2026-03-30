@@ -497,3 +497,91 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
     font-style: italic;
     color: var(--primary);
 }
+
+/* ====== Leaderboard Rows ====== */
+.lb-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+}
+.lb-row:hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateX(4px);
+    border-color: rgba(99,102,241,0.4);
+}
+.lb-rank {
+    font-size: 1.2rem;
+    font-weight: 900;
+    min-width: 36px;
+    text-align: center;
+    color: var(--text-muted);
+}
+.lb-info { flex: 1; }
+.lb-name { font-weight: 700; font-size: 0.95rem; color: white; }
+.lb-type { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.lb-score { font-weight: 900; font-size: 1rem; white-space: nowrap; }
+.lb-loading { text-align: center; color: var(--text-muted); padding: 2rem; }
+
+/* Highlight yourself */
+.highlight-me {
+    border-color: rgba(99,102,241,0.5) !important;
+    background: rgba(99,102,241,0.1) !important;
+}
+
+/* Premium rows */
+.premium-row {
+    background: linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(245,158,11,0.05) 100%) !important;
+    border-color: rgba(251,191,36,0.3) !important;
+}
+.premium-row:hover {
+    border-color: rgba(251,191,36,0.6) !important;
+}
+
+/* ====== Developer Achievement Borders ====== */
+
+/* The Creator 👑 — Majestic Golden Glow */
+@keyframes goldenPulse {
+    0%, 100% { box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.5), inset 0 0 12px rgba(255,215,0,0.08); border-color: rgba(255,215,0,0.7); }
+    50%       { box-shadow: 0 0 20px 6px rgba(255, 200, 0, 0.9), inset 0 0 20px rgba(255,215,0,0.15); border-color: gold; }
+}
+.creator-border {
+    border: 1.5px solid gold !important;
+    animation: goldenPulse 2.5s ease-in-out infinite !important;
+    background: linear-gradient(135deg, rgba(255,215,0,0.12) 0%, rgba(255,160,0,0.06) 100%) !important;
+}
+
+/* The Extreme 🔥 — Animated Rainbow RGB */
+@keyframes rgbBorder {
+    0%   { border-color: #ff0000; box-shadow: 0 0 10px 3px #ff000088; }
+    16%  { border-color: #ff8800; box-shadow: 0 0 10px 3px #ff880088; }
+    33%  { border-color: #ffff00; box-shadow: 0 0 10px 3px #ffff0088; }
+    50%  { border-color: #00ff00; box-shadow: 0 0 10px 3px #00ff0088; }
+    66%  { border-color: #0088ff; box-shadow: 0 0 10px 3px #0088ff88; }
+    83%  { border-color: #8800ff; box-shadow: 0 0 10px 3px #8800ff88; }
+    100% { border-color: #ff0000; box-shadow: 0 0 10px 3px #ff000088; }
+}
+.extreme-border {
+    border: 1.5px solid red !important;
+    animation: rgbBorder 3s linear infinite !important;
+    background: linear-gradient(135deg, rgba(255,0,80,0.08) 0%, rgba(100,0,255,0.08) 100%) !important;
+}
+
+/* The Void Master 🌌 — Deep Violet Pulse */
+@keyframes voidPulse {
+    0%, 100% { box-shadow: 0 0 10px 2px rgba(139, 0, 255, 0.45), inset 0 0 8px rgba(88,0,180,0.1); border-color: rgba(139,0,255,0.5); }
+    50%       { box-shadow: 0 0 22px 8px rgba(80, 0, 200, 0.85), inset 0 0 18px rgba(50,0,150,0.2); border-color: #8b00ff; }
+}
+.void-border {
+    border: 1.5px solid #8b00ff !important;
+    animation: voidPulse 3s ease-in-out infinite !important;
+    background: linear-gradient(135deg, rgba(80,0,200,0.12) 0%, rgba(20,0,80,0.08) 100%) !important;
+}

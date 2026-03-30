@@ -286,6 +286,14 @@ export async function fetchUserResults(userId) {
 export async function syncGlobalLeaderboard() {
     if (!isFirebaseConfigured) return;
     try {
+        // Fetch users map for Premium flags
+        const usersSnap = await getDocs(collection(db, 'users'));
+        const premiumMap = {};
+        usersSnap.forEach(doc => {
+            const data = doc.data();
+            if (data.isPremium) premiumMap[doc.id] = data.isPremium;
+        });
+
         const snap = await getDocs(collection(db, 'results'));
         let rawUsers = [];
         snap.forEach(doc => {
@@ -300,7 +308,8 @@ export async function syncGlobalLeaderboard() {
                 elo: d.elo || 500,
                 type: d.type || "Unknown",
                 achievement: d.achievement || "",
-                earnedScores: d.earnedScores || []
+                earnedScores: d.earnedScores || [],
+                isPremium: premiumMap[d.userId || doc.id] || premiumMap[doc.id] || false
             });
         });
 
@@ -316,6 +325,7 @@ export async function syncGlobalLeaderboard() {
                 existing.elo = Math.max(existing.elo, u.elo);
                 existing.type = u.score >= existing.score ? u.type : existing.type;
                 if (u.achievement) existing.achievement = u.achievement;
+                if (u.isPremium) existing.isPremium = u.isPremium;
                 if (u.earnedScores) {
                     existing.earnedScores = [...new Set([...(existing.earnedScores || []), ...u.earnedScores])];
                 }
@@ -340,6 +350,7 @@ export async function syncGlobalLeaderboard() {
                 existing.elo = Math.max(existing.elo, u.elo);
                 existing.type = u.score >= existing.score ? u.type : existing.type;
                 if (u.achievement) existing.achievement = u.achievement;
+                if (u.isPremium) existing.isPremium = u.isPremium;
                 if (u.earnedScores) {
                     existing.earnedScores = [...new Set([...(existing.earnedScores || []), ...u.earnedScores])];
                 }
