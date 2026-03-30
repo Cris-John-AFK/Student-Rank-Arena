@@ -506,7 +506,7 @@ window._openPublicProfile = function(entry) {
         else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
     }
     
-    modal.classList.add('active');
+    modal.classList.add('visible');
 };
 
 
