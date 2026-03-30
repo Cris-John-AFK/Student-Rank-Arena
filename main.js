@@ -659,7 +659,16 @@ async function openProfile() {
 }
 
 // ====== Quiz Logic ======
-function startQuiz() {
+async function startQuiz() {
+    const myId = getPersistentId();
+    // 🧠 Proactive Validation Check: Ensure we have the latest accomplishments before starting
+    try {
+        const profile = await getUserProfileData(myId);
+        if (profile && profile.earnedScores && profile.earnedScores.length > 0) {
+            showToast(`Continuing journey: ${profile.earnedScores.length}/101 types discovered! 🏆`);
+        }
+    } catch(e) { console.warn("Background validation skipped:", e); }
+
     currentQuestionIndex = 0;
     totalScore = 0;
     scoreHistory = [];
