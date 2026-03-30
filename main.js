@@ -339,7 +339,11 @@ function renderAchievementsSection(gridId, barId, countId, earnedScores) {
     const countEl = document.getElementById(countId);
     if (!grid) return;
 
-    const earned = new Set((earnedScores || []).map(Number));
+    const rawScores = Array.isArray(earnedScores) ? earnedScores : [earnedScores];
+    const earned = new Set(rawScores
+        .map(s => parseInt(s))
+        .filter(s => !isNaN(s) && s >= 0 && s <= 100)
+    );
     const total = 101;
     const unlockedCount = earned.size;
 
@@ -482,8 +486,11 @@ window._openPublicProfile = function(entry) {
         }
     }
 
-    const earnedScores = entry.earnedScores || (entry.score !== undefined ? [entry.score] : []);
-    renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', earnedScores);
+    const currentEarned = entry.earnedScores || [];
+    const fallbackScore = entry.bestScore || entry.score || entry.lastScore;
+    const allScores = [...new Set([...currentEarned, fallbackScore].filter(x => x !== undefined && x !== null))];
+
+    renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', allScores);
     
     const panel = modal.querySelector('.glass-panel');
     if (panel) {
@@ -496,12 +503,7 @@ window._openPublicProfile = function(entry) {
     
     modal.classList.add('active');
 };
-    if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
-    else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
-    else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
-    
-    modal.classList.add('visible');
-};
+
 
 // ====== Edit Profile ======
 async function openEditProfileModal() {
@@ -609,12 +611,16 @@ async function openProfile() {
             badge.style.color = '';
         }
 
+        const currentEarned = profile.earnedScores || [];
+        const fallbackScore = profile.bestScore || profile.score || profile.lastScore;
+        const allScores = [...new Set([...currentEarned, fallbackScore].filter(x => x !== undefined && x !== null))];
+
         updateProfileStatsUI(
-            profile.bestScore || profile.score || profile.lastScore,
+            fallbackScore,
             profile.rank || profile.lastRank,
             profile.type || profile.lastType,
             profile.achievement,
-            profile.earnedScores || (profile.score ? [profile.score] : [])
+            allScores
         );
     } else {
         updateProfileStatsUI('No quiz yet', '—', '—', null, []);
