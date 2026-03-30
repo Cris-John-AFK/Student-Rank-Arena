@@ -396,11 +396,12 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
     const eloEl = document.getElementById('profile-elo');
     const wRankEl = document.getElementById('profile-world-rank');
     const bScoreEl = document.getElementById('profile-score');
-    const bRankEl = document.getElementById('profile-rank');
+    const sRankEl = document.getElementById('profile-score-rank');
+    const profTypeEl = document.getElementById('prof-type');
     
+    const myId = getPersistentId();
+
     if (eloEl) {
-        // Use persistent ID (Email or Guest Hash)
-        const myId = getPersistentId();
         getUserProfileData(myId).then(data => {
             const elo = data?.elo || (typeof score === 'number' ? (score * 20) + 50 : 500);
             eloEl.textContent = elo;
@@ -412,9 +413,7 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
     
     if (bScoreEl) bScoreEl.textContent = (score !== undefined && score !== 'No quiz yet') ? `${score}/100` : '—';
     
-    const sRankEl = document.getElementById('profile-score-rank');
     if (sRankEl) {
-        const myId = getPersistentId();
         const scoreVal = (typeof score === 'number') ? score : 0;
         sRankEl.textContent = '#—';
         getUserRankByField('score', scoreVal, myId).then(r => {
@@ -426,22 +425,26 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
     const liveType = (typeof score === 'number' && studentTypesDict[score])
         ? studentTypesDict[score].type
         : (type || '—');
-    document.getElementById('prof-type').textContent = liveType;
+    
+    if (profTypeEl) profTypeEl.textContent = liveType;
     
     // Render exclusive dev achievement badge on top
     renderAchievementBadges('my-achievements', achievement);
     
-
     // Render the 101-types achievements grid
     renderAchievementsSection('my-achieve-grid', 'my-achieve-bar', 'my-achieve-count', earnedScores);
     
-    const panel = document.getElementById('profile').querySelector('.glass-panel');
-    panel.classList.remove('creator-border', 'extreme-border', 'void-border');
-    
-    const combinedStr = (liveType || '') + (achievement || '');
-    if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
-    else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
-    else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
+    const profileScreen = document.getElementById('profile');
+    if (profileScreen) {
+        const panel = profileScreen.querySelector('.glass-panel');
+        if (panel) {
+            panel.classList.remove('creator-border', 'extreme-border', 'void-border');
+            const combinedStr = (liveType || '') + (achievement || '');
+            if (combinedStr.includes('The Creator')) panel.classList.add('creator-border');
+            else if (combinedStr.includes('The Extreme')) panel.classList.add('extreme-border');
+            else if (combinedStr.includes('The Void Master')) panel.classList.add('void-border');
+        }
+    }
 }
 
 // ====== Public Profile Viewer ======
