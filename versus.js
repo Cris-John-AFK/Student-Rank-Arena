@@ -227,7 +227,7 @@ function listenToRoom(roomId) {
                 document.getElementById('p2-name').textContent = data.players[playerIds[1]].name;
                 document.getElementById('p2-avatar').textContent = '⚡';
                 document.getElementById('lobby-status').textContent = "Match Found! Prepare for Battle...";
-                if (isHost && data.playerCount === 2 && data.currentQuestionIndex === -1) {
+                if (isHost && data.playerCount === 2 && data.currentQuestionIndex === -1 && data.topicIndex === undefined) {
                     setTimeout(() => spinSlotMachine(), 1500);
                 }
             }
@@ -548,13 +548,25 @@ async function processEloUpdate(myScore, oppScore, correctCount) {
         
         if (result) {
             const resultsScreen = document.getElementById('versus-result');
+            
+            // clear old elo div if any
+            const existing = document.getElementById('elo-update-msg');
+            if (existing) existing.remove();
+            
             const eloDiv = document.createElement('div');
+            eloDiv.id = 'elo-update-msg';
             eloDiv.style.marginTop = '20px';
             eloDiv.style.fontSize = '1.4rem';
             eloDiv.style.fontWeight = '900';
             eloDiv.style.color = result.change >= 0 ? '#10b981' : '#ef4444';
             eloDiv.innerHTML = `Elo Change: ${result.change >= 0 ? '+' : ''}${result.change} 🚀<br><small style="color:white; font-size:0.8rem">New Elo: ${result.newElo}</small>`;
-            resultsScreen.querySelector('.quiz-container').appendChild(eloDiv);
+            
+            const scoresDiv = resultsScreen.querySelector('.vs-final-scores');
+            if (scoresDiv) {
+                scoresDiv.parentNode.insertBefore(eloDiv, scoresDiv.nextSibling);
+            } else {
+                resultsScreen.querySelector('.glass-panel').appendChild(eloDiv);
+            }
         }
     } catch(e) { console.error("Elo display error", e); }
 }
