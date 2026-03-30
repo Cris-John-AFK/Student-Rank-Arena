@@ -255,11 +255,18 @@ export async function getUserProfileData(id) {
             combinedData = { ...resDoc.data() };
         }
 
-        // 2. Get Account Data (Users collection) - master for names/premium status
+        // 2. Get Account Data (Users collection) - master for names/premium/ACHIEVEMENT
         if (id.includes('@')) {
             const userDoc = await getDoc(doc(db, 'users', id));
             if (userDoc.exists()) {
-                combinedData = { ...combinedData, ...userDoc.data() };
+                const userData = userDoc.data();
+                combinedData = { ...combinedData, ...userData };
+                // Achievement from users table is PERMANENT and always wins
+                if (userData.achievement) combinedData.achievement = userData.achievement;
+                // Merge earnedScores from both tables
+                const resScores = combinedData.earnedScores || [];
+                const userScores = userData.earnedScores || [];
+                combinedData.earnedScores = [...new Set([...resScores, ...userScores])];
             }
         }
         
@@ -286,12 +293,16 @@ export async function fetchUserResults(userId) {
 export async function syncGlobalLeaderboard() {
     if (!isFirebaseConfigured) return;
     try {
-        // Fetch users map for Premium flags
+        // Fetch users map for Premium flags AND achievement (permanent, from users table)
         const usersSnap = await getDocs(collection(db, 'users'));
         const premiumMap = {};
+        const achievementMap = {};
+        const earnedScoresMap = {};
         usersSnap.forEach(doc => {
             const data = doc.data();
             if (data.isPremium) premiumMap[doc.id] = data.isPremium;
+            if (data.achievement) achievementMap[doc.id] = data.achievement;
+            if (data.earnedScores) earnedScoresMap[doc.id] = data.earnedScores;
         });
 
         const snap = await getDocs(collection(db, 'results'));
@@ -300,16 +311,22 @@ export async function syncGlobalLeaderboard() {
             if (doc.id === '--GLOBAL_STATE--') return; // Bypass the engine document
             
             const d = doc.data();
+            const uid = d.userId || doc.id;
+            // Merge earnedScores from users table too (fix Types Discovered mismatch)
+            const resEarned = d.earnedScores || [];
+            const userEarned = earnedScoresMap[uid] || [];
+            const mergedEarned = [...new Set([...resEarned, ...userEarned])];
             rawUsers.push({
                 docId: doc.id,
-                userId: d.userId || doc.id,
+                userId: uid,
                 displayName: d.displayName || "Unknown",
                 score: d.score || 0,
                 elo: d.elo || 500,
                 type: d.type || "Unknown",
-                achievement: d.achievement || "",
-                earnedScores: d.earnedScores || [],
-                isPremium: premiumMap[d.userId || doc.id] || premiumMap[doc.id] || false
+                // Achievement: users table wins (permanent), fallback to results
+                achievement: achievementMap[uid] || achievementMap[doc.id] || d.achievement || "",
+                earnedScores: mergedEarned,
+                isPremium: premiumMap[uid] || premiumMap[doc.id] || false
             });
         });
 
