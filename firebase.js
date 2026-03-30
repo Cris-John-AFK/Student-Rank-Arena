@@ -319,19 +319,29 @@ export async function fetchLeaderboardAround(field, value, cushion = 3) {
     }
 }
 
-/**
- * 🏆 Calculates the global Elo rank of a user
- */
-export async function getUserRankByField(field, value) {
+export async function getUserRankByField(field, value, myUid) {
     if (!isFirebaseConfigured || value === undefined) return 0;
     try {
         const resultsRef = collection(db, 'results');
-        const q = query(resultsRef, where(field, '>', value));
-        const snapshot = await getCountFromServer(q);
-        return (snapshot.data().count || 0) + 1;
-    } catch (e) { console.error(`Rank fetch (${field}) failed:`, e); return 0; }
+        
+        // 1. Count all users with a strictly higher score/Elo
+        const qBetter = query(resultsRef, where(field, '>', value));
+        const snapBetter = await getCountFromServer(qBetter);
+        const countBetter = snapBetter.data().count || 0;
+
+        // 2. TIE-BREAKER: Count users with the EXACT same score but a 'smaller' userId (alphabetically)
+        // This ensures the ranking is ALWAYS unique and sequential (1, 2, 3...)
+        let countSameBetter = 0;
+        if (myUid) {
+            const qSame = query(resultsRef, where(field, '==', value), where('userId', '<', myUid));
+            const snapSame = await getCountFromServer(qSame);
+            countSameBetter = snapSame.data().count || 0;
+        }
+
+        return countBetter + countSameBetter + 1;
+    } catch (e) { console.error(`Sequential rank lookup (${field}) failed:`, e); return 0; }
 }
 
-export async function getUserEloRank(myElo) {
-    return getUserRankByField('elo', myElo);
+export async function getUserEloRank(myElo, myUid) {
+    return getUserRankByField('elo', myElo, myUid);
 }

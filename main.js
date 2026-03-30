@@ -404,7 +404,7 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
         getUserProfileData(myId).then(data => {
             const elo = data?.elo || (typeof score === 'number' ? (score * 20) + 50 : 500);
             eloEl.textContent = elo;
-            getUserEloRank(elo).then(wRank => {
+            getUserEloRank(elo, myId).then(wRank => {
                 if (wRankEl) wRankEl.textContent = `#${wRank}`;
             });
         });
@@ -477,7 +477,7 @@ window._openPublicProfile = function(entry) {
             pEloWorldRank.textContent = `#${entry.absoluteRank}`;
         } else {
             pEloWorldRank.textContent = '#—';
-            getUserRankByField('elo', eloValue).then(r => { if(pEloWorldRank) pEloWorldRank.textContent = `#${r}`; });
+            getUserRankByField('elo', eloValue, entry.userId || entry.id).then(r => { if(pEloWorldRank) pEloWorldRank.textContent = `#${r}`; });
         }
     }
 
@@ -487,7 +487,7 @@ window._openPublicProfile = function(entry) {
             pScoreWorldRank.textContent = `#${entry.absoluteRank}`;
         } else {
             pScoreWorldRank.textContent = '#—';
-            getUserRankByField('score', scoreValue).then(r => { if(pScoreWorldRank) pScoreWorldRank.textContent = `#${r}`; });
+            getUserRankByField('score', scoreValue, entry.userId || entry.id).then(r => { if(pScoreWorldRank) pScoreWorldRank.textContent = `#${r}`; });
         }
     }
 
