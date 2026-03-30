@@ -186,6 +186,9 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
                 } catch(ee){ console.error("Identity Merge Error:", ee); }
             }
             
+            // Auto-trigger the central Global Rank Engine sync
+            await syncGlobalLeaderboard();
+            
             return { success: true, displayName, userId: currentUserId, isNewElo, elo: eloToReturn };
         } catch (e) {
             console.error('Save failed:', e);
@@ -229,6 +232,9 @@ export async function updateEloAfterMatch(myId, opponentId, won, myScore, oppSco
         const batchUpdates = [updateDoc(myResRef, { elo: newElo })];
         if (myUserRef) batchUpdates.push(setDoc(myUserRef, { elo: newElo }, { merge: true }));
         await Promise.all(batchUpdates);
+        
+        // Ensure standard rankings stay updated
+        await syncGlobalLeaderboard();
 
         return { newElo, change };
     } catch(e) { console.error("Elo update fail", e); }
@@ -273,105 +279,120 @@ export async function fetchUserResults(userId) {
     } catch (e) { console.error("User results fetch failed:", e); return []; }
 }
 
+export async function syncGlobalLeaderboard() {
+    if (!isFirebaseConfigured) return;
+    try {
+        const snap = await getDocs(collection(db, 'results'));
+        let rawUsers = [];
+        snap.forEach(doc => {
+            const d = doc.data();
+            rawUsers.push({
+                docId: doc.id,
+                userId: d.userId || doc.id,
+                displayName: d.displayName || "Unknown",
+                score: d.score || 0,
+                elo: d.elo || 500,
+                type: d.type || "Unknown",
+                achievement: d.achievement || "",
+                earnedScores: d.earnedScores || []
+            });
+        });
+
+        // 1. Strict Identity Dedup (Merging Ghost -> Registered)
+        const userMap = new Map();
+        rawUsers.forEach(u => {
+            const trueId = u.userId;
+            if (!userMap.has(trueId)) {
+                userMap.set(trueId, { ...u });
+            } else {
+                const existing = userMap.get(trueId);
+                existing.score = Math.max(existing.score, u.score);
+                existing.elo = Math.max(existing.elo, u.elo);
+                existing.type = u.score >= existing.score ? u.type : existing.type;
+                if (u.achievement) existing.achievement = u.achievement;
+                if (u.earnedScores) {
+                    existing.earnedScores = [...new Set([...(existing.earnedScores || []), ...u.earnedScores])];
+                }
+            }
+            // Auto-cleanup bad ghosts in DB if we have a merged registered user
+            if (u.userId.includes('@') && u.docId !== u.userId) {
+                deleteDoc(doc(db, 'results', u.docId)).catch(()=>console.log("Cleanup failed"));
+            }
+        });
+
+        let finalUsers = Array.from(userMap.values());
+
+        // 2. Exact Name Dedup (Prevent 'Georgie' vs 'Georgie' duplicates)
+        const nameMap = new Map();
+        finalUsers.forEach(u => {
+            const n = u.displayName.toLowerCase().trim();
+            if (!nameMap.has(n)) {
+                nameMap.set(n, { ...u });
+            } else {
+                const existing = nameMap.get(n);
+                existing.score = Math.max(existing.score, u.score);
+                existing.elo = Math.max(existing.elo, u.elo);
+                existing.type = u.score >= existing.score ? u.type : existing.type;
+                if (u.achievement) existing.achievement = u.achievement;
+                if (u.earnedScores) {
+                    existing.earnedScores = [...new Set([...(existing.earnedScores || []), ...u.earnedScores])];
+                }
+                // Keep the email identity if one is registered
+                if (u.userId.includes('@')) existing.userId = u.userId;
+            }
+        });
+
+        let deduplicatedUsers = Array.from(nameMap.values());
+
+        // 3. Mathematical Sequencing (Sort & Assign absoluteRank)
+        const assessmentList = [...deduplicatedUsers]
+            .sort((a, b) => b.score - a.score || a.userId.localeCompare(b.userId))
+            .map((u, i) => ({ ...u, absoluteRank: i + 1, id: u.userId }));
+
+        const eloList = [...deduplicatedUsers]
+            .sort((a, b) => b.elo - a.elo || a.userId.localeCompare(b.userId))
+            .map((u, i) => ({ ...u, absoluteRank: i + 1, id: u.userId }));
+
+        // 4. Overwrite Global State Table
+        await setDoc(doc(db, 'global_state', 'leaderboards'), {
+            assessment: assessmentList,
+            elo: eloList,
+            lastUpdated: serverTimestamp()
+        });
+        
+    } catch (e) { console.error("Sync Engine Failed:", e); }
+}
+
 export async function fetchLeaderboard(orderByField = 'score', limitCount = 50) {
     if (!isFirebaseConfigured) return [];
     try {
-        const resultsRef = collection(db, 'results');
-        const q = query(resultsRef, orderBy(orderByField, 'desc'), limit(limitCount));
-        const querySnapshot = await getDocs(q);
-        const leaderboardData = [];
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            const actualIdInDoc = data.userId || null;
-            // PREVENT DUPLICATES: If this entry has a primary identity (email), skip the secondary (hash/guest) record
-            if (actualIdInDoc && actualIdInDoc.includes('@') && doc.id !== actualIdInDoc) return;
-            leaderboardData.push({ id: doc.id, ...data });
-        });
-        // Ensure Elo exists for sorting
-        leaderboardData.forEach(d => { if (d.elo === undefined) d.elo = 500; });
-        return leaderboardData;
-    } catch (e) { console.error("Leaderboard fetch failed:", e); return []; }
+        const snap = await getDoc(doc(db, 'global_state', 'leaderboards'));
+        if (snap.exists()) {
+            const data = snap.data();
+            return orderByField === 'elo' ? data.elo : data.assessment;
+        }
+    } catch(e) { console.error("Fetch DB failed", e); }
+    return [];
 }
 
 export async function fetchLeaderboardAround(field, value, cushion = 3) {
-    if (!isFirebaseConfigured) return [];
-    try {
-        const resultsRef = collection(db, 'results');
-        const qHigh = query(resultsRef, where(field, '>=', value), orderBy(field, 'asc'), limit(cushion + 1));
-        const qLow = query(resultsRef, where(field, '<', value), orderBy(field, 'desc'), limit(cushion));
-
-        const [snapHigh, snapLow] = await Promise.all([getDocs(qHigh), getDocs(qLow)]);
-        const highData = [];
-        snapHigh.forEach(doc => highData.push({ id: doc.id, ...doc.data() }));
-        highData.reverse();
-
-        const lowData = [];
-        snapLow.forEach(doc => lowData.push({ id: doc.id, ...doc.data() }));
-
-        const combined = [...highData, ...lowData];
-        // Ensure Elo exists for local display
-        combined.forEach(d => { if (d.elo === undefined) d.elo = 500; });
-        return combined;
-    } catch (e) {
-        console.error("Around-me fetch failed:", e);
-        // Backup: Just fetch Top 10 by score if Elo query dies/is empty
-        return fetchLeaderboard('score', 10);
-    }
+    return []; // Deprecated: Replaced by guaranteed absolute indexing
 }
 
 export async function getUserRankByField(field, value, myUid) {
-    if (!isFirebaseConfigured || value === undefined) return 0;
+    if (!isFirebaseConfigured || !myUid) return 0;
     try {
-        const resultsRef = collection(db, 'results');
-        
-        const q = query(resultsRef, where(field, '>=', value));
-        const snap = await getDocs(q);
-        
-        const rawResults = [];
-        snap.forEach(doc => {
-            const data = doc.data();
-            const id = data.userId || doc.id;
-            // Ghost-Filter: If this entry has a primary identity (email), skip the secondary (hash/guest) record
-            if (id && id.includes('@') && doc.id !== id) return;
-            rawResults.push({ ...data, id: doc.id });
-        });
-
-        // 🎯 Sort by score desc BEFORE deduplicating so we always keep the best record for that identity
-        rawResults.sort((a, b) => (b[field] || 0) - (a[field] || 0));
-
-        const uniqueStudents = [];
-        const seenNames = new Set();
-        const seenIds = new Set();
-        
-        rawResults.forEach(data => {
-            const name = (data.displayName || "").toLowerCase();
-            const id = data.userId || data.id;
-            
-            // Deduplicate: If we've seen this name OR ID already, skip it (keeps the best one)
-            if (seenNames.has(name) || seenIds.has(id)) return;
-            
-            seenNames.add(name);
-            seenIds.add(id);
-            uniqueStudents.push(data);
-        });
-
-        // Final tie-breaker sort for sequential rank (Matches leaderboard list)
-        uniqueStudents.sort((a, b) => {
-            if (b[field] !== a[field]) return b[field] - a[field];
-            const idA = a.userId || a.id;
-            const idB = b.userId || b.id;
-            return idA < idB ? -1 : 1;
-        });
-
-        const myIndex = uniqueStudents.findIndex(s => (s.userId || s.id) === myUid);
-        return myIndex !== -1 ? myIndex + 1 : uniqueStudents.length + 1;
-
-    } catch (e) { 
-        console.error(`Deduplicated rank lookup (${field}) failed:`, e); 
-        return 1;
-    }
+        const snap = await getDoc(doc(db, 'global_state', 'leaderboards'));
+        if (snap.exists()) {
+            const list = field === 'elo' ? snap.data().elo : snap.data().assessment;
+            const myEntry = list.find(u => u.id === myUid || u.displayName.toLowerCase() === myUid.toLowerCase());
+            return myEntry ? myEntry.absoluteRank : list.length + 1;
+        }
+    } catch(e) {}
+    return 1;
 }
 
 export async function getUserEloRank(myElo, myUid) {
     return getUserRankByField('elo', myElo, myUid);
 }
+

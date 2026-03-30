@@ -220,63 +220,24 @@ async function renderLeaderboard(tab) {
     const teaser = document.getElementById('lb-premium-teaser');
     list.innerHTML = '<div class="lb-loading">Fetching real rankings...</div>';
 
-    const myId = currentUser?.email || localStorage.getItem('myArenaId');
+    const { syncGlobalLeaderboard } = await import('./firebase.js');
+    await syncGlobalLeaderboard();
+
+    const myId = getPersistentId();
     let displayData = [];
 
-    if (tab === 'elo') {
-        const profile = await getUserProfileData(currentUser?.email);
-        const myElo = profile?.elo || 500;
-        
-        const [top3, aroundMe, myRank] = await Promise.all([
-            fetchLeaderboard('elo', 3),
-            fetchLeaderboardAround('elo', myElo, 3),
-            getUserEloRank(myElo)
-        ]);
+    const fullData = await fetchLeaderboard(tab === 'elo' ? 'elo' : 'score');
+    
+    // UI Cap: Show top 50
+    displayData = fullData.slice(0, 50);
 
-        const combined = [...top3, ...aroundMe];
-        combined.sort((a, b) => (b.elo || 500) - (a.elo || 500));
-
-        const seenNames = new Set();
-        const seenIds = new Set();
-        displayData = [];
-
-        combined.forEach(d => {
-            const name = (d.displayName || "Unknown").toLowerCase();
-            const id = d.userId || d.id;
-            
-            // Deduplicate: Prioritize the highest ELO records
-            if (seenNames.has(name) || seenIds.has(id)) return;
-            
-            seenNames.add(name);
-            seenIds.add(id);
-            displayData.push(d);
-        });
-
-        // Rank the slice sequentially
-        const myIndex = displayData.findIndex(d => (d.userId === myId || d.id === myId));
-        if (myIndex !== -1 && myRank) {
-            displayData.forEach((d, i) => {
-                d.absoluteRank = myRank + (i - myIndex);
-            });
+    // If I am not in the top 50, fetch my specific entry and append it at the bottom
+    const myInTop = displayData.findIndex(u => u.id === myId || u.userId === myId);
+    if (myInTop === -1) {
+        const myRealEntry = fullData.find(u => u.id === myId || u.userId === myId);
+        if (myRealEntry) {
+            displayData.push(myRealEntry);
         }
-    } else {
-        const raw = await fetchLeaderboard('score', 50);
-        
-        // 🎯 Identity Deduplication: Ensure each student appears only once
-        const seenN = new Set();
-        const seenI = new Set();
-        displayData = [];
-        
-        raw.forEach(d => {
-            const n = (d.displayName || "Unknown").toLowerCase();
-            const id = d.userId || d.id;
-            
-            if (seenN.has(n) || seenI.has(id)) return;
-            
-            seenN.add(n);
-            seenI.add(id);
-            displayData.push(d);
-        });
     }
     
     list.innerHTML = '';
@@ -286,16 +247,9 @@ async function renderLeaderboard(tab) {
         const isEloTab = tab === 'elo';
         const rankValue = isEloTab ? (entry.elo || 500) : `${entry.score}/100`;
         
-        let medal = `#${index + 1}`;
-        if (isEloTab) {
-            // Priority: use the calculated sequential rank based on the sorted array
-            medal = `#${index + 1}`;
-            // If we have an absolute rank offset from the world count, apply it
-            if (entry.absoluteRank) {
-                medal = `#${entry.absoluteRank}`;
-            }
-        } else if (index < 3) {
-            medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+        let medal = `#${entry.absoluteRank || (index + 1)}`;
+        if (!isEloTab && entry.absoluteRank <= 3) {
+            medal = entry.absoluteRank === 1 ? '🥇' : entry.absoluteRank === 2 ? '🥈' : '🥉';
         }
 
         let nameDisplay = entry.displayName || "Unknown";
