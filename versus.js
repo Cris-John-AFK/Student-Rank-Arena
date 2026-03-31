@@ -309,12 +309,13 @@ function listenToRoom(roomId) {
             const oppData = oppId ? data.players[oppId] : null;
 
             if (myData) {
-                document.getElementById('vs-my-name').textContent = "You";
+                document.getElementById('vs-my-name').textContent = "You" + (myData.status === 'answered' ? ' ✨' : '');
                 document.getElementById('vs-my-score').textContent = myData.score || 0;
                 vsScore = myData.score || 0;
             }
             if (oppData) {
-                document.getElementById('vs-opp-name').textContent = oppData.name;
+                // 📡 Instantly alert the user if opponent locks in an answer!
+                document.getElementById('vs-opp-name').textContent = oppData.name + (oppData.status === 'answered' ? ' ✨' : '');
                 document.getElementById('vs-opp-score').textContent = oppData.score || 0;
                 vsOpponentScore = oppData.score || 0;
             }
@@ -341,8 +342,8 @@ function listenToRoom(roomId) {
 async function spinSlotMachine() {
     const topicIdx = Math.floor(Math.random() * BATTLE_TOPICS.length);
     await updateDoc(doc(db, 'rooms', currentRoomId), { topicIndex: topicIdx });
-    // Host prepares questions and WAITS for completion
-    await prepareGame(BATTLE_TOPICS[topicIdx].id);
+    // ⚡ Pre-load questions IN PARALLEL while the slot animation plays (hides API latency!)
+    prepareGame(BATTLE_TOPICS[topicIdx].id); // Do NOT await — fires alongside spin animation!
 }
 
 function handleSlotMachineSync(idx) {
@@ -373,18 +374,19 @@ function handleSlotMachineSync(idx) {
     setTimeout(() => {
         strip.classList.add('playing-slot');
         if (isHost) {
-            // Check if questions arrived before starting
+            // ⚡ Questions are already being fetched in parallel — poll until they arrive
             let checkInterval = setInterval(async () => {
                 const snap = await getDoc(doc(db, 'rooms', currentRoomId));
                 if (snap.exists() && snap.data().questions) {
                     clearInterval(checkInterval);
+                    // Brief pause so users can see the final slot result
                     setTimeout(() => {
                         updateDoc(doc(db, 'rooms', currentRoomId), { status: 'playing' });
                     }, 500);
                 }
-            }, 1000);
+            }, 500); // Poll every 0.5s instead of 1s for snappier launch
         }
-    }, 4500); // 3s spin + grace period
+    }, 3200); // Tight to the 3s CSS transition — no extra grace period needed
 }
 
 async function prepareGame(categoryId) {
@@ -483,8 +485,14 @@ async function submitVsAnswer(isCorrect, selectedOpt = null) {
         b.disabled = true;
         // Visual feedback - bypasses encoded HTML entities safely
         const q = vsQuestions[vsCurrentIndex];
-        if (b.dataset.rawopt === q.correct) b.style.borderColor = 'var(--success)';
-        else if (b.disabled && b.dataset.rawopt === selectedOpt) b.style.opacity = '0.5';
+        if (b.dataset.rawopt === q.correct) {
+            b.style.borderColor = 'var(--success)';
+            b.classList.add('ans-correct'); // 🔥 Add Correct Pulse
+        }
+        else if (b.disabled && b.dataset.rawopt === selectedOpt) {
+            b.style.opacity = '0.7';
+            b.classList.add('ans-wrong'); // 💥 Add Wrong Shake
+        }
     });
 
     try {
@@ -515,18 +523,18 @@ function checkRoundOver(data) {
     if (data.lastRoundStart) {
         const startTime = data.lastRoundStart.toMillis ? data.lastRoundStart.toMillis() : Date.now();
         const elapsed = Date.now() - startTime;
-        // 🕒 RYTHMIC CLOCK: Force the round to wait for the full 10 seconds + 2s buffer
-        // This prevents jarring question-jumps when answering fast.
         if (elapsed > 12000) timedOut = true;
     }
 
-    if (timedOut && currentRoomId) {
+    // 🔥 INSTANT ADVANCEMENT: If both answered, skip the 10-second wait!
+    if ((allAnswered || timedOut) && currentRoomId) {
         isAdvancingRound = true; // Lock immediately to prevent parallel execution
         const nextIdx = data.currentQuestionIndex + 1;
         
         // Host advances the game normally, or Client forces it if Host is delayed
-        // Force client to wait a tiny bit longer than host to give host priority
-        const clientGracePeriod = isHost ? 1000 : 2500;
+        // Give a smooth 1.5s visual pause if advancing early, or skip immediately if timed out.
+        const baseDelay = allAnswered && !timedOut ? 1500 : 0;
+        const clientGracePeriod = isHost ? baseDelay : baseDelay + 2000;
 
         setTimeout(async () => {
             if (!currentRoomId) {
