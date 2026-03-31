@@ -445,10 +445,10 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
         });
     }
     
-    // Always derive type live from score dictionary
-    const liveType = (typeof score === 'number' && studentTypesDict[score])
+    // 🛡️ PERSONA LOCKDOWN: Prioritize explicitly equipped 'type', ONLY fallback to auto-calculated type if none exists
+    const liveType = type || ((typeof score === 'number' && studentTypesDict[score])
         ? studentTypesDict[score].type
-        : (type || '—');
+        : '—');
     
     if (profTypeEl) profTypeEl.textContent = liveType;
     
@@ -1157,6 +1157,10 @@ window.handleAdminEdit = async function(targetId, field, currentVal) {
         // Target both score fields simultaneously to override history
         if (field === 'score') {
             extraUpdates.bestScore = newVal;
+            // Instantly inject this new score into their 'discovered types' history to prevent desyncs
+            const profile = await getUserProfileData(targetId);
+            const currentEarned = profile?.earnedScores || [];
+            extraUpdates.earnedScores = [...new Set([...currentEarned, newVal])];
         }
     }
     
