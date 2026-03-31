@@ -259,24 +259,31 @@ export async function updateEloAfterMatch(myId, won, draw, correctCount) {
 
 export async function getUserProfileData(id) {
     if (!id || !isFirebaseConfigured) return null;
+    const targetId = id.includes('@') ? id.toLowerCase() : id;
+    
     try {
         let combinedData = {};
         
-        // 1. Get Competitive Data (Results collection) - master for scores/history
-        const resDoc = await getDoc(doc(db, 'results', id));
+        // 1. Get Competitive Data (Results collection)
+        const resDoc = await getDoc(doc(db, 'results', targetId));
         if (resDoc.exists()) {
             combinedData = { ...resDoc.data() };
         }
 
-        // 2. Get Account Data (Users collection) - master for names/premium/ACHIEVEMENT
-        if (id.includes('@')) {
-            const userDoc = await getDoc(doc(db, 'users', id));
+        const resType = combinedData.type;
+
+        // 2. Get Account Data (Users collection)
+        if (targetId.includes('@')) {
+            const userDoc = await getDoc(doc(db, 'users', targetId));
             if (userDoc.exists()) {
                 const userData = userDoc.data();
-                // Merge everything BUT let results.type win for manual selections
-                const resType = combinedData.type; 
                 combinedData = { ...userData, ...combinedData };
                 if (resType) combinedData.type = resType;
+
+                // Logging for verification
+                if (combinedData.displayName?.toLowerCase().includes('cris')) {
+                    console.log("🔍 [TRACING CRIS] Profile Logic:", combinedData.displayName, "| Title:", combinedData.type);
+                }
 
                 // Achievement from users table is PERMANENT and always wins
                 if (userData.achievement) combinedData.achievement = userData.achievement;

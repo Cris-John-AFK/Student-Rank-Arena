@@ -604,7 +604,9 @@ async function handleSaveProfileEdit(e) {
         
         // --- 🔥 REAL-TIME IDENTITY SYNC ---
         // 1. Update in Firestore results document
-        const userId = currentUser.email || currentUser.uid;
+        let userId = currentUser.email || currentUser.uid;
+        if (userId.includes('@')) userId = userId.toLowerCase();
+        
         const resRef = doc(db, 'results', userId);
         const updateData = { displayName: newName };
         if (newTitle) updateData.type = newTitle;
