@@ -308,12 +308,18 @@ export async function getUserProfileData(id) {
             const userDoc = await getDoc(doc(db, 'users', targetId));
             if (userDoc.exists()) {
                 const userData = userDoc.data();
-                combinedData = { ...userData, ...combinedData };
-                if (resType) combinedData.type = resType;
+                // 🛡️ REVERSED PRIORITY: Account (Users) table is the Master for Identity
+                // Merge everything into combinedData, but let account record (userData) overwrite names/titles
+                combinedData = { ...combinedData, ...userData };
+                
+                // Achievement and Name from users table always win
+                if (userData.achievement) combinedData.achievement = userData.achievement;
+                if (userData.displayName) combinedData.displayName = userData.displayName;
+                if (userData.type) combinedData.type = userData.type;
 
                 // Logging for verification
                 if (combinedData.displayName?.toLowerCase().includes('cris')) {
-                    console.log("🔍 [TRACING CRIS] Profile Logic:", combinedData.displayName, "| Title:", combinedData.type);
+                    console.log("🔍 [TRACING CRIS] Profile Logic (v1.0.9):", combinedData.displayName, "| Final Title:", combinedData.type);
                 }
 
                 if (combinedData.isBanned) {
@@ -374,6 +380,7 @@ export async function syncGlobalLeaderboard(force = false) {
         const typeMap = {};
         const nameMapFallback = {};
         
+        const scoreMap = {};
         usersSnap.forEach(doc => {
             const data = doc.data();
             if (data.isPremium) premiumMap[doc.id] = data.isPremium;
@@ -381,6 +388,7 @@ export async function syncGlobalLeaderboard(force = false) {
             if (data.earnedScores) earnedScoresMap[doc.id] = data.earnedScores;
             if (data.type || data.lastType) typeMap[doc.id] = data.type || data.lastType;
             if (data.displayName) nameMapFallback[doc.id] = data.displayName;
+            if (data.score) scoreMap[doc.id] = data.score; // 🏆 Cache account-level score
         });
 
         const snap = await getDocs(collection(db, 'results'));
@@ -389,9 +397,18 @@ export async function syncGlobalLeaderboard(force = false) {
             if (doc.id === '--GLOBAL_STATE--') return; 
             
             const d = doc.data();
-            if (d.isBanned) return; // 🚫 FILTER BANNED USERS FROM RANKINGS
+            if (d.isBanned) return; 
             
             const uid = d.userId || doc.id;
+            
+            // 🛡️ SCORE RECONCILIATION
+            // If the permanent account has a higher score (e.g. 63) than the results doc (48), honor the higher one.
+            const masterScoreValue = Math.max(d.score || 0, scoreMap[uid] || 0);
+
+            if (uid.toLowerCase().includes('crisjohn')) {
+                console.log("🔍 [TRACING CRIS] Sync Engine Audit:", uid, "| ResultScore:", d.score, "| AccountScore:", scoreMap[uid], "| Winner:", masterScoreValue);
+            }
+
             const resEarned = d.earnedScores || [];
             const userEarned = earnedScoresMap[uid] || [];
             const mergedEarned = [...new Set([...resEarned, ...userEarned])];
@@ -399,9 +416,8 @@ export async function syncGlobalLeaderboard(force = false) {
             rawUsers.push({
                 docId: doc.id,
                 userId: uid,
-                // Master Identity Rule: Prefer Account-table names/types for registered accounts
                 displayName: nameMapFallback[uid] || d.displayName || "Unknown",
-                score: d.score || 0,
+                score: masterScoreValue,
                 elo: d.elo || 500,
                 type: typeMap[uid] || d.type || "Unknown",
                 achievement: achievementMap[uid] || achievementMap[doc.id] || d.achievement || "",
