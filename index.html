@@ -349,6 +349,69 @@
             </div>
         </section>
 
+        <!-- ⚡ BLITZ DUEL QUIZ SCREEN -->
+        <section id="blitz-quiz" class="screen">
+            <div class="quiz-container glass-panel" style="position: relative; padding-top: 0;">
+                <!-- Blitz HUD -->
+                <div class="blitz-hud">
+                    <div class="blitz-player left">
+                        <div class="vs-name-row">
+                            <span class="ready-dot" id="blitz-my-dot"></span>
+                            <span id="blitz-my-name" class="vs-name">You</span>
+                        </div>
+                        <span id="blitz-my-score" class="vs-score">0</span>
+                    </div>
+                    <div class="blitz-clock-wrap">
+                        <div id="blitz-clock" class="blitz-clock">60</div>
+                        <div class="blitz-clock-label">BLITZ</div>
+                    </div>
+                    <div class="blitz-player right">
+                        <div class="vs-name-row">
+                            <span id="blitz-opp-name" class="vs-name">...</span>
+                            <span class="ready-dot" id="blitz-opp-dot"></span>
+                        </div>
+                        <span id="blitz-opp-score" class="vs-score">0</span>
+                    </div>
+                </div>
+
+                <!-- Per-question shrinking bar -->
+                <div class="blitz-q-bar-bg">
+                    <div id="blitz-q-bar" class="blitz-q-bar"></div>
+                </div>
+
+                <div class="question-header" style="padding: 0 0.5rem; margin-bottom: 0.8rem;">
+                    <span id="blitz-q-count" style="font-size:0.85rem;">Q 1 / 10</span>
+                    <span id="blitz-category" class="badge badge-neon" style="font-size:0.7rem;">General Knowledge</span>
+                </div>
+                <div class="quiz-content no-select" style="padding: 0 0.2rem;">
+                    <h3 id="blitz-q-text" style="font-size: 1.2rem; margin-bottom: 1rem;">Loading...</h3>
+                    <div id="blitz-options" class="options" style="gap: 0.6rem;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ⚡ BLITZ DUEL RESULT SCREEN -->
+        <section id="blitz-result" class="screen">
+            <div class="glass-panel text-center">
+                <div id="blitz-status-icon" style="font-size: 4rem; margin-bottom: 1rem;">⚡</div>
+                <h1 id="blitz-result-title" class="gradient-text">SPEED KING!</h1>
+                <p id="blitz-result-msg" class="subtitle">You conquered the blitz!</p>
+                <div class="vs-final-scores">
+                    <div class="final-score-box">
+                        <div class="label">Your Score</div>
+                        <div id="blitz-final-my-score" class="value">0</div>
+                    </div>
+                    <div class="final-score-box">
+                        <div class="label">Opponent</div>
+                        <div id="blitz-final-opp-score" class="value">0</div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button id="blitz-back-btn" class="btn btn-primary w-100">⚡ Back to Hub</button>
+                </div>
+            </div>
+        </section>
+
         <!-- Ad Interstitial Screen -->
         <section id="ad-screen" class="screen">
             <div class="glass-panel text-center">
@@ -522,6 +585,14 @@
                     <div class="text">
                         <strong>Random Match</strong>
                         <span>Compete with strangers</span>
+                    </div>
+                </button>
+                <!-- ⚡ NEW: Blitz Duel -->
+                <button id="vs-blitz-btn" class="match-option-btn w-100" style="border-color: rgba(245,158,11,0.5); background: rgba(245,158,11,0.07);">
+                    <div class="icon">⚡</div>
+                    <div class="text">
+                        <strong style="color:#f59e0b;">Blitz Duel <span style="font-size:0.7rem; background:#f59e0b; color:black; border-radius:4px; padding:1px 5px; margin-left:4px;">NEW</span></strong>
+                        <span>60 sec · auto-advance · high ELO stakes</span>
                     </div>
                 </button>
                 <div style="display: flex; gap: 10px; width: 100%;">

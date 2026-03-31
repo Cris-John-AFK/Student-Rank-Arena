@@ -34,6 +34,8 @@ const screens = {
     lobby: document.getElementById('versus-lobby'),
     quiz: document.getElementById('versus-quiz'),
     result: document.getElementById('versus-result'),
+    'blitz-quiz': document.getElementById('blitz-quiz'),
+    'blitz-result': document.getElementById('blitz-result'),
 };
 
 function showVsScreen(id) {
@@ -88,27 +90,36 @@ export function initVersus() {
     document.getElementById('vs-back-btn').addEventListener('click', () => {
         leaveRoom();
     });
+    document.getElementById('blitz-back-btn').addEventListener('click', () => {
+        leaveRoom();
+    });
+    document.getElementById('vs-blitz-btn').addEventListener('click', () => {
+        document.getElementById('vs-choice-modal').classList.remove('visible');
+        startBlitzMatchmaking();
+    });
 
-    // 🛡️ ANTI-CHEAT: Tab-switch penalty during active match
+    // 🛡️ ANTI-CHEAT: Tab-switch penalty during active match (both modes)
     document.addEventListener('visibilitychange', () => {
+        const cheatToast = (msg) => {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const t = document.createElement('div');
+            t.className = 'toast cheat-toast';
+            t.textContent = msg;
+            container.appendChild(t);
+            setTimeout(() => t.remove(), 3200);
+        };
         if (document.hidden && vsStatus === 'playing' && !isLocalAnswered) {
-            console.warn('🚨 Anti-cheat: Tab switch detected!');
-            // Drain timer bar visually for maximum effect
+            console.warn('🚨 Anti-cheat: Tab switch detected! (VS mode)');
             const bar = document.getElementById('vs-count-bar');
             if (bar) bar.style.width = '0%';
-            // Auto-submit WRONG — this resets their chance at speed bonus too
             submitVsAnswer(false, null);
-            // Show a cheat warning toast (imported from main if available, else fallback)
-            const toastFn = window.showToast || ((msg) => {
-                const container = document.getElementById('toast-container');
-                if (!container) return;
-                const t = document.createElement('div');
-                t.className = 'toast cheat-toast';
-                t.textContent = msg;
-                container.appendChild(t);
-                setTimeout(() => t.remove(), 3200);
-            });
-            toastFn('⚠️ TAB SWITCH DETECTED! Question marked WRONG as penalty!');
+            (window.showToast || cheatToast)('⚠️ TAB SWITCH DETECTED! Question marked WRONG as penalty!');
+        }
+        if (document.hidden && blitzStatus === 'playing' && !blitzAnswered) {
+            console.warn('🚨 Anti-cheat: Tab switch detected! (Blitz mode)');
+            submitBlitzAnswer(false, null);
+            (window.showToast || cheatToast)('⚠️ TAB SWITCH DETECTED! Question marked WRONG as penalty!');
         }
     });
 }
@@ -728,3 +739,330 @@ async function leaveRoom() {
     currentRoomId = null;
     showVsScreen('landing');
 }
+
+// ============================================================
+// ⚡ BLITZ DUEL ENGINE
+// ============================================================
+let blitzStatus = 'idle'; // idle | playing | finished
+let blitzQuestions = [];
+let blitzCurrentIndex = 0;
+let blitzScore = 0;
+let blitzOppScore = 0;
+let blitzAnswered = false;
+let blitzGlobalInterval = null; // 60s shared countdown
+let blitzQInterval = null;      // 6s per-question auto-advance
+let blitzTimeLeft = 60;
+let blitzQTimeLeft = 6;
+let blitzListener = null;
+
+async function startBlitzMatchmaking() {
+    myPlayerId = getPersistentId();
+    showVsScreen('lobby');
+    document.getElementById('lobby-status').textContent = '⚡ Searching for Blitz opponent...';
+    document.getElementById('room-code-display').style.display = 'none';
+    document.getElementById('p2-avatar').textContent = '❓';
+    document.getElementById('p2-name').textContent = 'Waiting...';
+
+    try {
+        const queueRef = doc(db, 'rooms', '--BLITZ-QUEUE--');
+        let finalRoomId = null;
+        const newRoomId = 'blitz_' + Math.random().toString(36).substring(2, 10);
+
+        await runTransaction(db, async (transaction) => {
+            const snap = await transaction.get(queueRef);
+            let queue = snap.exists() ? snap.data().queue || [] : [];
+            const now = Date.now();
+            queue = queue.filter(p => (now - p.time) < 15000);
+            const opponentIdx = queue.findIndex(p => p.id !== myPlayerId);
+            if (opponentIdx !== -1) {
+                const opponent = queue.splice(opponentIdx, 1)[0];
+                transaction.set(queueRef, { queue });
+                finalRoomId = opponent.roomId;
+            } else {
+                if (!queue.find(p => p.id === myPlayerId)) {
+                    queue.push({ id: myPlayerId, roomId: newRoomId, time: now });
+                    transaction.set(queueRef, { queue });
+                }
+                finalRoomId = 'WAIT:' + newRoomId;
+            }
+        });
+
+        if (finalRoomId.startsWith('WAIT:')) {
+            createBlitzRoom(finalRoomId.split(':')[1]);
+        } else {
+            await joinBlitzRoom(finalRoomId);
+        }
+    } catch (e) {
+        console.error('Blitz matchmaking error:', e);
+        alert('Blitz Arena Connection Error. Please try again!');
+        showVsScreen('landing');
+    }
+}
+
+async function createBlitzRoom(roomId) {
+    isHost = true;
+    currentRoomId = roomId;
+    const initialData = {
+        mode: 'blitz',
+        players: {
+            [myPlayerId]: { name: auth.currentUser?.displayName || 'Gladiator', score: 0, status: 'waiting', avatar: '⚡' }
+        },
+        playerEmails: { [myPlayerId]: myPlayerId },
+        playerCount: 1,
+        matchStatus: 'searching_blitz',
+        status: 'lobby',
+        currentQuestionIndex: -1,
+        createdAt: serverTimestamp()
+    };
+    await setDoc(doc(db, 'rooms', roomId), initialData);
+    showVsScreen('lobby');
+    document.getElementById('lobby-status').textContent = '⚡ Waiting for Blitz opponent...';
+    document.getElementById('room-code-display').style.display = 'none';
+    listenToBlitzRoom(roomId);
+}
+
+async function joinBlitzRoom(roomId) {
+    isHost = false;
+    currentRoomId = roomId;
+    const roomRef = doc(db, 'rooms', roomId);
+    await updateDoc(
+        roomRef,
+        new FieldPath('players', myPlayerId), { name: auth.currentUser?.displayName || 'Gladiator', score: 0, status: 'waiting', avatar: '⚡' },
+        new FieldPath('playerEmails', myPlayerId), myPlayerId,
+        'playerCount', 2,
+        'matchStatus', 'full'
+    );
+    showVsScreen('lobby');
+    listenToBlitzRoom(roomId);
+}
+
+function listenToBlitzRoom(roomId) {
+    if (blitzListener) blitzListener();
+    blitzListener = onSnapshot(doc(db, 'rooms', roomId), (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+
+        // Lobby sync (reuse existing lobby DOM)
+        if (data.status === 'lobby') {
+            const pIds = Object.keys(data.players);
+            document.getElementById('p1-name').textContent = data.players[pIds[0]].name;
+            if (pIds[1]) {
+                document.getElementById('p2-name').textContent = data.players[pIds[1]].name;
+                document.getElementById('p2-avatar').textContent = '⚡';
+                document.getElementById('lobby-status').textContent = '⚡ Blitz Match Found! Prepare...';
+                // Host pre-loads questions NOW, while showing lobby
+                if (isHost && data.playerCount === 2 && data.currentQuestionIndex === -1 && !data.questions) {
+                    prepareBlitzGame();
+                }
+            }
+        }
+
+        // Game start
+        if (data.status === 'blitz_playing' && blitzStatus !== 'playing') {
+            blitzQuestions = data.questions;
+            blitzStatus = 'playing';
+            blitzScore = 0;
+            blitzOppScore = 0;
+            blitzCurrentIndex = 0;
+            blitzTimeLeft = 60;
+            showVsScreen('blitz-quiz');
+            startBlitzGlobalClock();
+            renderBlitzQuestion();
+        }
+
+        // Live score sync
+        if (data.status === 'blitz_playing') {
+            const pIds = Object.keys(data.players);
+            const myData = data.players[myPlayerId];
+            const oppId = pIds.find(id => id !== myPlayerId);
+            const oppData = oppId ? data.players[oppId] : null;
+            if (myData) {
+                document.getElementById('blitz-my-score').textContent = myData.score || 0;
+                blitzScore = myData.score || 0;
+                const d = document.getElementById('blitz-my-dot');
+                if (d) d.classList.toggle('dot-ready', myData.status === 'answered');
+            }
+            if (oppData) {
+                document.getElementById('blitz-opp-name').textContent = oppData.name;
+                document.getElementById('blitz-opp-score').textContent = oppData.score || 0;
+                blitzOppScore = oppData.score || 0;
+                const d = document.getElementById('blitz-opp-dot');
+                if (d) d.classList.toggle('dot-ready', oppData.status === 'answered');
+            }
+        }
+
+        // Finish
+        if (data.status === 'blitz_finished' && blitzStatus === 'playing') {
+            finishBlitzGame(data);
+        }
+    });
+    window.addEventListener('beforeunload', leaveRoom);
+}
+
+async function prepareBlitzGame() {
+    const topicIdx = Math.floor(Math.random() * BATTLE_TOPICS.length);
+    try {
+        // Fire fetch in parallel — lobby screen hides latency
+        const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${BATTLE_TOPICS[topicIdx].id}&type=multiple`);
+        const json = await res.json();
+        if (json.response_code !== 0) throw new Error('API error');
+        const questions = json.results.map(q => ({
+            category: q.category,
+            text: q.question,
+            correct: q.correct_answer,
+            options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5)
+        }));
+        await updateDoc(doc(db, 'rooms', currentRoomId), {
+            questions,
+            currentQuestionIndex: 0,
+            status: 'blitz_playing',
+            blitzStartedAt: serverTimestamp()
+        });
+    } catch (e) {
+        console.error('Blitz prep failed, retrying...', e);
+        setTimeout(() => prepareBlitzGame(), 5000);
+    }
+}
+
+function startBlitzGlobalClock() {
+    blitzTimeLeft = 60;
+    if (blitzGlobalInterval) clearInterval(blitzGlobalInterval);
+    blitzGlobalInterval = setInterval(() => {
+        blitzTimeLeft--;
+        const el = document.getElementById('blitz-clock');
+        if (el) {
+            el.textContent = blitzTimeLeft;
+            if (blitzTimeLeft <= 10) el.classList.add('danger');
+        }
+        if (blitzTimeLeft <= 0) {
+            clearInterval(blitzGlobalInterval);
+            if (isHost) updateDoc(doc(db, 'rooms', currentRoomId), { status: 'blitz_finished' });
+        }
+    }, 1000);
+}
+
+function renderBlitzQuestion() {
+    if (!blitzQuestions.length) return;
+    const q = blitzQuestions[blitzCurrentIndex];
+    document.getElementById('blitz-q-count').textContent = `Q ${blitzCurrentIndex + 1} / ${blitzQuestions.length}`;
+    document.getElementById('blitz-category').textContent = q.category;
+    document.getElementById('blitz-q-text').innerHTML = q.text;
+
+    const container = document.getElementById('blitz-options');
+    container.innerHTML = '';
+    q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = opt;
+        btn.dataset.rawopt = opt;
+        if (window._isAdmin && opt === q.correct) {
+            btn.style.border = '2px solid #10b981';
+        }
+        btn.onclick = () => submitBlitzAnswer(opt === q.correct, opt);
+        container.appendChild(btn);
+    });
+
+    // Reset dots + answered guard
+    blitzAnswered = false;
+    const md = document.getElementById('blitz-my-dot');
+    const od = document.getElementById('blitz-opp-dot');
+    if (md) md.classList.remove('dot-ready');
+    if (od) od.classList.remove('dot-ready');
+
+    // Per-question 6s auto-advance bar
+    if (blitzQInterval) clearInterval(blitzQInterval);
+    blitzQTimeLeft = 6;
+    const bar = document.getElementById('blitz-q-bar');
+    if (bar) bar.style.width = '100%';
+    blitzQInterval = setInterval(() => {
+        blitzQTimeLeft -= 0.1;
+        const pct = (blitzQTimeLeft / 6) * 100;
+        if (bar) bar.style.width = `${Math.max(0, pct)}%`;
+        if (blitzQTimeLeft <= 0) {
+            clearInterval(blitzQInterval);
+            advanceBlitzQuestion();
+        }
+    }, 100);
+}
+
+async function submitBlitzAnswer(isCorrect, selectedOpt) {
+    if (!currentRoomId || blitzAnswered) return;
+    blitzAnswered = true;
+
+    // Visual feedback
+    const options = document.querySelectorAll('#blitz-options .option-btn');
+    const q = blitzQuestions[blitzCurrentIndex];
+    options.forEach(b => {
+        b.disabled = true;
+        if (b.dataset.rawopt === q.correct) b.classList.add('ans-correct');
+        else if (b.dataset.rawopt === selectedOpt) b.classList.add('ans-wrong');
+    });
+
+    // +15 correct, -5 wrong (floor at 0)
+    if (isCorrect) blitzScore += 15;
+    else blitzScore = Math.max(0, blitzScore - 5);
+    document.getElementById('blitz-my-score').textContent = blitzScore;
+
+    try {
+        await updateDoc(doc(db, 'rooms', currentRoomId),
+            new FieldPath('players', myPlayerId, 'score'), blitzScore,
+            new FieldPath('players', myPlayerId, 'status'), 'answered'
+        );
+    } catch(e) { /* Room already closed */ }
+}
+
+function advanceBlitzQuestion() {
+    if (blitzStatus !== 'playing') return;
+    clearInterval(blitzQInterval);
+    blitzCurrentIndex++;
+    if (blitzCurrentIndex < blitzQuestions.length && blitzTimeLeft > 0) {
+        // Reset player statuses atomically (clone to avoid dot-notation shredding)
+        if (isHost) {
+            getDoc(doc(db, 'rooms', currentRoomId)).then(snap => {
+                if (!snap.exists()) return;
+                const newPlayers = { ...snap.data().players };
+                Object.keys(newPlayers).forEach(id => { newPlayers[id].status = 'waiting'; });
+                updateDoc(doc(db, 'rooms', currentRoomId), { currentQuestionIndex: blitzCurrentIndex, players: newPlayers });
+            });
+        }
+        renderBlitzQuestion();
+    } else if (blitzTimeLeft <= 0 || blitzCurrentIndex >= blitzQuestions.length) {
+        if (isHost) updateDoc(doc(db, 'rooms', currentRoomId), { status: 'blitz_finished' });
+    }
+}
+
+function finishBlitzGame(data) {
+    blitzStatus = 'finished';
+    clearInterval(blitzGlobalInterval);
+    clearInterval(blitzQInterval);
+
+    document.getElementById('blitz-final-my-score').textContent = blitzScore;
+    document.getElementById('blitz-final-opp-score').textContent = blitzOppScore;
+    showVsScreen('blitz-result');
+
+    const title = document.getElementById('blitz-result-title');
+    const msg = document.getElementById('blitz-result-msg');
+    const icon = document.getElementById('blitz-status-icon');
+
+    if (blitzScore > blitzOppScore) {
+        title.textContent = 'SPEED KING! ⚡';
+        title.className = 'gradient-text winner-glow';
+        msg.textContent = 'You dominated the blitz!';
+        icon.textContent = '👑';
+    } else if (blitzScore < blitzOppScore) {
+        title.textContent = 'DEFEATED';
+        title.className = '';
+        title.style.color = '#ef4444';
+        msg.textContent = 'Train harder and run the blitz again!';
+        icon.textContent = '💀';
+    } else {
+        title.textContent = 'DEAD HEAT!';
+        title.className = 'gradient-text';
+        msg.textContent = 'Perfectly matched!';
+        icon.textContent = '⚡';
+    }
+
+    // 1.5x ELO stake for Blitz (higher risk/reward)
+    processEloUpdate(blitzScore, blitzOppScore, Math.round(blitzScore / 15));
+}
+
