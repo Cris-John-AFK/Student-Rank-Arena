@@ -319,11 +319,11 @@ export async function syncGlobalLeaderboard(force = false) {
             const data = stateSnap.data();
             const lastUpdate = data.lastUpdated?.toMillis() || 0;
             const elapsed = Date.now() - lastUpdate;
-            if (elapsed < 900000) return; // 15 minutes chill period - silent skip
+            if (elapsed < 5000) return; // Debug: Reduce throttle to 5s to force updates
         }
 
-        console.log("🚀 Sync-Engine: Re-aggregating all player ranks...");
-        // Fetch users map for Premium flags AND achievement
+        console.log("🚀 [SYNCHRONIZER V1.0.6] Re-aggregating all player ranks (FORCED)...");
+        // Fetch users map for Premium flags AND achievement (permanent)
         const usersSnap = await getDocs(collection(db, 'users'));
         const premiumMap = {};
         const achievementMap = {};
@@ -354,10 +354,10 @@ export async function syncGlobalLeaderboard(force = false) {
             rawUsers.push({
                 docId: doc.id,
                 userId: uid,
+                // Master Identity Rule: Prefer Account-table names/types for registered accounts
                 displayName: nameMapFallback[uid] || d.displayName || "Unknown",
                 score: d.score || 0,
                 elo: d.elo || 500,
-                // Account table persona (typeMap) always wins for registered users!
                 type: typeMap[uid] || d.type || "Unknown",
                 achievement: achievementMap[uid] || achievementMap[doc.id] || d.achievement || "",
                 earnedScores: mergedEarned,
