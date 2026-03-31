@@ -309,17 +309,22 @@ export async function getUserProfileData(id) {
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 // 🛡️ REVERSED PRIORITY: Account (Users) table is the Master for Identity
-                // Merge everything into combinedData, but let account record (userData) overwrite names/titles
                 combinedData = { ...combinedData, ...userData };
                 
                 // Achievement and Name from users table always win
                 if (userData.achievement) combinedData.achievement = userData.achievement;
                 if (userData.displayName) combinedData.displayName = userData.displayName;
-                if (userData.type) combinedData.type = userData.type;
+                
+                // persona priority: Manual choice (type) > bestType > lastType
+                const accountPersona = userData.type || userData.bestType || userData.lastType;
+                if (accountPersona) combinedData.type = accountPersona;
+                
+                // score priority: highest between both collections
+                combinedData.score = Math.max(combinedData.score || 0, userData.score || 0, userData.bestScore || 0);
 
                 // Logging for verification
                 if (combinedData.displayName?.toLowerCase().includes('cris')) {
-                    console.log("🔍 [TRACING CRIS] Profile Logic (v1.0.9):", combinedData.displayName, "| Final Title:", combinedData.type);
+                    console.log("🔍 [TRACING CRIS] Profile Logic (v1.1.0):", combinedData.displayName, "| Final Title:", combinedData.type, "| Best:", combinedData.score);
                 }
 
                 if (combinedData.isBanned) {
@@ -371,7 +376,7 @@ export async function syncGlobalLeaderboard(force = false) {
             if (elapsed < 5000) return; // Debug: Reduce throttle to 5s to force updates
         }
 
-        console.log("🚀 [SYNCHRONIZER V1.0.6] Re-aggregating all player ranks (FORCED)...");
+        console.log("🚀 [SYNCHRONIZER V1.1.0] Re-aggregating all player ranks (FORCED)...");
         // Fetch users map for Premium flags AND achievement (permanent)
         const usersSnap = await getDocs(collection(db, 'users'));
         const premiumMap = {};
@@ -386,9 +391,15 @@ export async function syncGlobalLeaderboard(force = false) {
             if (data.isPremium) premiumMap[doc.id] = data.isPremium;
             if (data.achievement) achievementMap[doc.id] = data.achievement;
             if (data.earnedScores) earnedScoresMap[doc.id] = data.earnedScores;
-            if (data.type || data.lastType) typeMap[doc.id] = data.type || data.lastType;
             if (data.displayName) nameMapFallback[doc.id] = data.displayName;
-            if (data.score) scoreMap[doc.id] = data.score; // 🏆 Cache account-level score
+            
+            // 🛡️ PERSONA BRIDGE: Capture any persona name from users table
+            const accountType = data.type || data.bestType || data.lastType;
+            if (accountType) typeMap[doc.id] = accountType;
+
+            // 🛡️ SCORE BRIDGE: Handle multiple score field names
+            const accountScore = Math.max(data.score || 0, data.bestScore || 0);
+            if (accountScore > 0) scoreMap[doc.id] = accountScore; 
         });
 
         const snap = await getDocs(collection(db, 'results'));
@@ -403,10 +414,11 @@ export async function syncGlobalLeaderboard(force = false) {
             
             // 🛡️ SCORE RECONCILIATION
             // If the permanent account has a higher score (e.g. 63) than the results doc (48), honor the higher one.
-            const masterScoreValue = Math.max(d.score || 0, scoreMap[uid] || 0);
+            const resultScore = Math.max(d.score || 0, d.bestScore || 0);
+            const masterScoreValue = Math.max(resultScore, scoreMap[uid] || 0);
 
             if (uid.toLowerCase().includes('crisjohn')) {
-                console.log("🔍 [TRACING CRIS] Sync Engine Audit:", uid, "| ResultScore:", d.score, "| AccountScore:", scoreMap[uid], "| Winner:", masterScoreValue);
+                console.log("🔍 [TRACING CRIS] Sync Engine Audit (v1.1.0):", uid, "| ResultScore:", resultScore, "| AccountScore:", scoreMap[uid], "| Winner:", masterScoreValue);
             }
 
             const resEarned = d.earnedScores || [];
