@@ -580,57 +580,59 @@
             <h2 class="gradient-text mb-1">Battle Mode</h2>
             <p class="subtitle mb-3">Choose your destiny in the arena</p>
             
-            <div class="matchmaking-grid" style="display: flex; flex-direction: column; gap: 10px;">
-                <button id="vs-random-btn" class="match-option-btn w-100">
-                    <div class="icon">🌍</div>
-                    <div class="text">
-                        <strong>Random Match</strong>
-                        <span>Compete with strangers</span>
-                    </div>
-                </button>
-                <!-- ⚡ NEW: Blitz Duel -->
-                <button id="vs-blitz-btn" class="match-option-btn w-100" style="border-color: rgba(245,158,11,0.5); background: rgba(245,158,11,0.07);">
-                    <div class="icon">⚡</div>
-                    <div class="text">
-                        <strong style="color:#f59e0b;">Blitz Duel <span style="font-size:0.7rem; background:#f59e0b; color:black; border-radius:4px; padding:1px 5px; margin-left:4px;">NEW</span></strong>
-                        <span>60 sec · auto-advance · high ELO stakes</span>
-                    </div>
-                </button>
-                <div style="display: flex; gap: 10px; width: 100%;">
-                    <button id="vs-friend-btn" class="match-option-btn w-100" style="flex: 1;">
-                        <div class="icon">🎟️</div>
-                        <div class="text">
+                <div class="battle-main-grid">
+                    <button id="vs-random-btn" class="battle-card highlight-glow">
+                        <div class="card-icon">🌍</div>
+                        <div class="card-body">
+                            <strong>Random Opponent</strong>
+                            <span>Find a global challenger</span>
+                        </div>
+                    </button>
+                    <button id="vs-blitz-btn" class="battle-card blitz-glow">
+                        <div class="card-icon">⚡</div>
+                        <div class="card-body">
+                            <strong>Blitz Duel</strong>
+                            <span>60s · Fast Advance · High Elo</span>
+                        </div>
+                        <div class="new-tag">NEW</div>
+                    </button>
+                </div>
+
+                <div class="battle-sub-grid">
+                    <button id="vs-friend-btn" class="battle-card mini">
+                        <div class="card-icon mini">🎟️</div>
+                        <div class="card-body">
                             <strong>Host Friend</strong>
-                            <span>Create room code</span>
                         </div>
                     </button>
-                    <button id="vs-join-friend-btn" class="match-option-btn w-100" style="flex: 1;">
-                        <div class="icon">🔑</div>
-                        <div class="text">
+                    <button id="vs-join-friend-btn" class="battle-card mini">
+                        <div class="card-icon mini">🔑</div>
+                        <div class="card-body">
                             <strong>Join Friend</strong>
-                            <span>Enter code</span>
                         </div>
                     </button>
                 </div>
 
-                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 0.5rem 0;">
-
-                <div id="solo-ai-options" style="display: none; animation: slideDown 0.3s ease;">
-                    <div class="subtitle mb-2" style="font-size: 0.75rem;">SELECT DIFFICULTY:</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                        <button id="ai-easy-btn" class="btn btn-sm" style="background: rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.5);">Easy (30%)</button>
-                        <button id="ai-medium-btn" class="btn btn-sm" style="background: rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.5);">Mid (60%)</button>
-                        <button id="ai-hard-btn" class="btn btn-sm" style="background: rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.5);">Hard (90%)</button>
-                    </div>
+                <div class="battle-section-header mt-4">
+                    <span>🥋 Solo Training Arena</span>
                 </div>
-
-                <button id="vs-solo-btn" class="match-option-btn w-100" style="border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.07);">
-                    <div class="icon">🤖</div>
-                    <div class="text">
-                        <strong style="color:#818cf8;">Solo Arena</strong>
-                        <span>Battle vs AI · low rewards</span>
-                    </div>
-                </button>
+                <div class="ai-difficulty-strip">
+                    <button id="ai-easy-btn" class="ai-card easy">
+                        <div class="ai-emoji">🌱</div>
+                        <strong>Apprentice</strong>
+                        <span>35% Power</span>
+                    </button>
+                    <button id="ai-medium-btn" class="ai-card medium">
+                        <div class="ai-emoji">⚔️</div>
+                        <strong>Gladiator</strong>
+                        <span>65% Power</span>
+                    </button>
+                    <button id="ai-hard-btn" class="ai-card hard">
+                        <div class="ai-emoji">💀</div>
+                        <strong>Overlord</strong>
+                        <span>92% Power</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

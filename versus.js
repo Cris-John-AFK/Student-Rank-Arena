@@ -130,12 +130,7 @@ export function initVersus() {
         }
     });
 
-    // 🤖 SOLO AI MODE BUTTONS
-    document.getElementById('vs-solo-btn').addEventListener('click', () => {
-        const options = document.getElementById('solo-ai-options');
-        options.style.display = options.style.display === 'none' ? 'block' : 'none';
-    });
-
+    // 🤖 SOLO AI MODE SELECTION
     ['easy', 'medium', 'hard'].forEach(diff => {
         document.getElementById(`ai-${diff}-btn`).addEventListener('click', () => {
             aiDifficulty = diff;
