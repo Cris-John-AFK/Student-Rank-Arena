@@ -14,6 +14,7 @@ let vsScore = 0;
 let vsOpponentScore = 0;
 let vsStatus = 'idle'; // idle, matching, lobby, playing, finished
 let timeLeft = 10; // In seconds
+let isLocalAnswered = false; // 🛡️ Prevent double-submission when keeping timer alive
 let antiHangInterval = null;
 let vsCorrectCount = 0;
 let isAdvancingRound = false; // Safety lock to prevent double-skipping/freezing
@@ -458,6 +459,7 @@ function startVsTimer() {
     timeLeft = 10; // Reset to 10 seconds
     const bar = document.getElementById('vs-count-bar');
     const txt = document.getElementById('vs-timer-text');
+    isLocalAnswered = false; // Reset local state
     
     if (vsTimerInterval) clearInterval(vsTimerInterval);
     
@@ -469,14 +471,15 @@ function startVsTimer() {
 
         if (timeLeft <= 0) {
             clearInterval(vsTimerInterval);
-            submitVsAnswer(false);
+            // 🛡️ Only submit "Wrong/Timeout" if they didn't already answer
+            if (!isLocalAnswered) submitVsAnswer(false);
         }
     }, 100); // Update every 100ms
 }
 
 async function submitVsAnswer(isCorrect, selectedOpt = null) {
-    if (!currentRoomId) return;
-    if (vsTimerInterval) clearInterval(vsTimerInterval);
+    if (!currentRoomId || isLocalAnswered) return;
+    isLocalAnswered = true; // Lock-out further submits for this round
     
     if (isCorrect) vsCorrectCount++;
     let bonus = isCorrect ? Math.floor(timeLeft / 5) : 0; // max +10 bonus
@@ -519,10 +522,12 @@ function checkRoundOver(data) {
     if (data.lastRoundStart) {
         const startTime = data.lastRoundStart.toMillis ? data.lastRoundStart.toMillis() : Date.now();
         const elapsed = Date.now() - startTime;
-        if (elapsed > 12500) timedOut = true;
+        // 🕒 RYTHMIC CLOCK: Force the round to wait for the full 10 seconds + 2s buffer
+        // This prevents jarring question-jumps when answering fast.
+        if (elapsed > 12000) timedOut = true;
     }
 
-    if (allAnswered || (timedOut && currentRoomId)) {
+    if (timedOut && currentRoomId) {
         isAdvancingRound = true; // Lock immediately to prevent parallel execution
         const nextIdx = data.currentQuestionIndex + 1;
         
