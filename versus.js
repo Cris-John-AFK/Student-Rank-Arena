@@ -1,4 +1,5 @@
 import { questions } from './questions.js';
+import { ARENA_QUESTIONS } from './arena_questions.js';
 import { db, auth, isFirebaseConfigured, getPersistentId, getUserProfileData } from './firebase.js';
 import { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, deleteDoc, serverTimestamp, query, where, limit, getDocs, deleteField, FieldPath, runTransaction } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
@@ -28,11 +29,11 @@ let aiDifficulty = 'medium'; // easy, medium, hard
 let aiTimer = null;
 
 const BATTLE_TOPICS = [
-    { id: 9, name: "General Knowledge", icon: "🌍" },
-    { id: 18, name: "Computer Science", icon: "💻" },
-    { id: 19, name: "Mathematics", icon: "➕" },
-    { id: 22, name: "Geography", icon: "🗺️" },
-    { id: 23, name: "History", icon: "📜" }
+    { id: "ph_history", name: "Philippine History", icon: "🇵🇭" },
+    { id: "english", name: "English Mastery", icon: "📖" },
+    { id: "math", name: "Mathematics", icon: "➕" },
+    { id: "geography_ph", name: "PH Geography", icon: "🗺️" },
+    { id: "cs", name: "Computer Science", icon: "💻" }
 ];
 
 // DOM Helper
@@ -452,43 +453,33 @@ function handleSlotMachineSync(idx) {
     }, 3200); // Tight to the 3s CSS transition — no extra grace period needed
 }
 
-async function prepareGame(categoryId) {
+async function prepareGame(topicId) {
     if (!currentRoomId) return;
     try {
-        console.log("🛠️ Preparing 10 questions for category:", categoryId);
+        console.log("🛠️ Selecting 10 questions from local bank:", topicId);
         
-        // 🔥 FIX: 429 Rate Limit (Open Trivia DB only allows 1 request per 5 seconds)
-        // We now make ONE single call for 10 questions instead of 3 parallel ones.
-        const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${categoryId}&type=multiple`);
-        const json = await res.json();
-        
-        if (json.response_code !== 0) {
-            throw new Error(`API returned code ${json.response_code}`);
-        }
+        const pool = ARENA_QUESTIONS[topicId] || [];
+        if (pool.length < 10) throw new Error("Pool too small");
 
-        const questions = json.results.map(q => ({
-            category: q.category,
-            text: q.question,
-            correct: q.correct_answer,
-            options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5)
-        }));
+        const selected = [...pool].sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ ...q, categoryId: topicId }));
 
         await updateDoc(doc(db, 'rooms', currentRoomId), {
-            questions: questions,
+            questions: selected,
             currentQuestionIndex: 0,
-            lastRoundStart: serverTimestamp() // Set first round start
+            lastRoundStart: serverTimestamp() 
         });
     } catch (e) {
         console.error("Prep failed", e);
-        // Force minimum 5s to clear the OpenTDB rate limiter completely
-        setTimeout(() => prepareGame(categoryId), 5500);
     }
 }
 
 function renderVsQuestion() {
     const q = vsQuestions[vsCurrentIndex];
     document.getElementById('vs-q-count').textContent = `Question ${vsCurrentIndex + 1}/10`;
-    document.getElementById('vs-category').textContent = q.category;
+    
+    // 🔥 Localized Category Name from BATTLE_TOPICS
+    const topic = BATTLE_TOPICS.find(t => t.id === q.categoryId) || { name: q.category || "Competition" };
+    document.getElementById('vs-category').textContent = topic.name;
     document.getElementById('vs-q-text').innerHTML = q.text;
     
     const container = document.getElementById('vs-options');
@@ -555,35 +546,23 @@ function startSoloAIMatch() {
     
     // Simulate slight delay for "synthesis"
     setTimeout(async () => {
-        isHost = true; // Solo players act as host of their own local-ish game
+        isHost = true; 
         vsStatus = 'playing';
         vsScore = 0;
         vsOpponentScore = 0;
         vsCurrentIndex = 0;
         
-        // Fetch questions from API
         const catIdx = Math.floor(Math.random() * BATTLE_TOPICS.length);
-        const catId = BATTLE_TOPICS[catIdx].id;
+        const topicId = BATTLE_TOPICS[catIdx].id;
         
         document.getElementById('vs-category').textContent = BATTLE_TOPICS[catIdx].name;
         
-        try {
-            const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${catId}&type=multiple`);
-            const json = await res.json();
-            vsQuestions = json.results.map(q => ({
-                category: q.category,
-                text: q.question,
-                correct: q.correct_answer,
-                options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5)
-            }));
-            
-            showVsScreen('quiz');
-            renderVsQuestion();
-            document.getElementById('vs-opp-name').textContent = `AI-${aiDifficulty.toUpperCase()}`;
-        } catch(e) { 
-            alert("Connection error fetching AI categories."); 
-            leaveRoom();
-        }
+        const pool = ARENA_QUESTIONS[topicId] || [];
+        vsQuestions = [...pool].sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ ...q, categoryId: topicId }));
+        
+        showVsScreen('quiz');
+        renderVsQuestion();
+        document.getElementById('vs-opp-name').textContent = `AI-${aiDifficulty.toUpperCase()}`;
     }, 1500);
 }
 
