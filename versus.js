@@ -1,6 +1,6 @@
 import { questions } from './questions.js';
-import { db, auth, isFirebaseConfigured, getPersistentId } from './firebase.js';
-import { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, deleteDoc, serverTimestamp, query, where, limit, getDocs, deleteField, FieldPath } from "firebase/firestore";
+import { db, auth, isFirebaseConfigured, getPersistentId, getUserProfileData } from './firebase.js';
+import { collection, doc, setDoc, getDoc, updateDoc, onSnapshot, deleteDoc, serverTimestamp, query, where, limit, getDocs, deleteField, FieldPath, runTransaction } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 
 let currentRoomId = null;
@@ -16,6 +16,8 @@ let vsStatus = 'idle'; // idle, matching, lobby, playing, finished
 let timeLeft = 10; // In seconds
 let antiHangInterval = null;
 let vsCorrectCount = 0;
+let isAdvancingRound = false; // Safety lock to prevent double-skipping/freezing
+let latestRoomData = null; // Global reference for the watchdog to avoid stale closure hanging
 
 const BATTLE_TOPICS = [
     { id: 9, name: "General Knowledge", icon: "🌍" },
@@ -42,12 +44,16 @@ export function initVersus() {
     console.log("⚔️ Versus Arena Initialized");
     
     const versusBtn = document.getElementById('versus-btn');
-    if (versusBtn) versusBtn.addEventListener('click', () => {
-        if (!auth.currentUser) {
-            // Need a reference to main.js's showModal or just use alert
-            alert("Please login or enter a name to step into the Arena!");
+    if (versusBtn) versusBtn.addEventListener('click', async () => {
+        // 🔥 PLACEMENT LOCK: Verify if player has established a rank first
+        const myId = getPersistentId();
+        const profile = await getUserProfileData(myId);
+        
+        if (!profile || !profile.hasPlacement) {
+            alert("⚠️ PROVING GROUNDS REQUIRED: You must complete the Placement Quiz (Start Quiz) at least once to establish your initial Elo rank before you can enter the Versus Arena!");
             return;
         }
+
         document.getElementById('vs-choice-modal').classList.add('visible');
     });
 
@@ -97,7 +103,6 @@ async function startRandomMatchmaking() {
     // 🔒 Atomic matchmaking using a Firestore Transaction
     // This prevents the race condition where two users press Random at the same time
     try {
-        const { runTransaction } = await import("firebase/firestore");
         const roomsRef = collection(db, 'rooms');
         const q = query(roomsRef, where('matchStatus', '==', 'searching_random'), limit(5));
         const snapshot = await getDocs(q);
@@ -247,10 +252,12 @@ function listenToRoom(roomId) {
     roomListener = onSnapshot(doc(db, 'rooms', roomId), (snap) => {
         if (!snap.exists()) return;
         const data = snap.data();
+        latestRoomData = data; // 🔥 EXTREMELY CRITICAL: Update global ref for the watchdog!
         
         // 🚨 DISCONNECT CHECK: If opponent leaves or room is deleted
-        if (vsStatus !== 'idle' && (!data.players[myPlayerId] || data.playerCount < 2 && vsStatus === 'playing')) {
-            alert("Opponent has disconnected or left the arena! 💨");
+        if (vsStatus !== 'idle' && (!data.players[myPlayerId] || (data.playerCount < 2 && vsStatus === 'playing'))) {
+            // Note: Don't alert if we're already leaving or finished
+            if (vsStatus !== 'finished') alert("Opponent has disconnected or left the arena! 💨");
             leaveRoom();
             return;
         }
@@ -281,12 +288,13 @@ function listenToRoom(roomId) {
             vsScore = 0;
             vsCorrectCount = 0;
             vsOpponentScore = 0;
+            isAdvancingRound = false; // Clear lock on start
             showVsScreen('quiz');
             
             if (antiHangInterval) clearInterval(antiHangInterval);
             antiHangInterval = setInterval(() => {
-                if (vsStatus !== 'playing') return;
-                checkRoundOver(data);
+                if (vsStatus !== 'playing' || !latestRoomData) return;
+                checkRoundOver(latestRoomData);
             }, 3000);
         }
 
@@ -304,10 +312,13 @@ function listenToRoom(roomId) {
             const pIds = Object.keys(data.players);
             const myData = data.players[myPlayerId];
             const oppId = pIds.find(id => id !== myPlayerId);
-            const oppData = data.players[oppId];
+            const oppData = oppId ? data.players[oppId] : null;
 
-            document.getElementById('vs-my-name').textContent = "You";
-            document.getElementById('vs-my-score').textContent = myData.score || 0;
+            if (myData) {
+                document.getElementById('vs-my-name').textContent = "You";
+                document.getElementById('vs-my-score').textContent = myData.score || 0;
+                vsScore = myData.score || 0;
+            }
             if (oppData) {
                 document.getElementById('vs-opp-name').textContent = oppData.name;
                 document.getElementById('vs-opp-score').textContent = oppData.score || 0;
@@ -315,7 +326,7 @@ function listenToRoom(roomId) {
             }
 
             // Sync transitions (Force skip if stuck)
-            if (vsStatus === 'playing' && currentRoomId) {
+            if (vsStatus === 'playing' && currentRoomId && myData) {
                 checkRoundOver(data);
             }
         }
@@ -490,7 +501,8 @@ async function submitVsAnswer(isCorrect, selectedOpt = null) {
 }
 
 function checkRoundOver(data) {
-    if (!currentRoomId) return;
+    if (!currentRoomId || isAdvancingRound) return;
+    
     const pIds = Object.keys(data.players || {});
     if (pIds.length === 0) return;
 
@@ -504,37 +516,55 @@ function checkRoundOver(data) {
     }
 
     if (allAnswered || (timedOut && currentRoomId)) {
+        isAdvancingRound = true; // Lock immediately to prevent parallel execution
         const nextIdx = data.currentQuestionIndex + 1;
         
-        // Host advances the game normally, or Client forces it if Host is dead
-        if (isHost || (timedOut && Date.now() - (data.lastRoundStart.toMillis?.() || Date.now()) > 12000)) {
-            setTimeout(async () => {
-                if (!currentRoomId) return;
-                try {
-                    const roomRef = doc(db, 'rooms', currentRoomId);
-                    const freshSnap = await getDoc(roomRef);
-                    if (!freshSnap.exists()) return;
-                    
-                    const freshData = freshSnap.data();
-                    if (freshData.currentQuestionIndex >= nextIdx || freshData.status === 'finished') return;
+        // Host advances the game normally, or Client forces it if Host is delayed
+        // Force client to wait a tiny bit longer than host to give host priority
+        const clientGracePeriod = isHost ? 1000 : 2500;
 
-                    if (nextIdx < 10) {
-                        const currentPlayers = freshData.players || {};
-                        pIds.forEach(id => {
-                            if (currentPlayers[id]) currentPlayers[id].status = 'waiting';
-                        });
-                        
-                        await updateDoc(roomRef, {
-                            currentQuestionIndex: nextIdx,
-                            lastRoundStart: serverTimestamp(),
-                            players: currentPlayers
-                        });
-                    } else {
-                        await updateDoc(roomRef, { status: 'finished' });
-                    }
-                } catch(e) { console.error("Round transition error:", e); }
-            }, 1000);
-        }
+        setTimeout(async () => {
+            if (!currentRoomId) {
+                isAdvancingRound = false;
+                return;
+            }
+            try {
+                const roomRef = doc(db, 'rooms', currentRoomId);
+                const freshSnap = await getDoc(roomRef);
+                if (!freshSnap.exists()) {
+                    isAdvancingRound = false;
+                    return;
+                }
+                
+                const freshData = freshSnap.data();
+                // Check if someone else already advanced it
+                if (freshData.currentQuestionIndex >= nextIdx || freshData.status === 'finished') {
+                    isAdvancingRound = false;
+                    return;
+                }
+
+                if (nextIdx < 10) {
+                    // Update current question index and reset player statuses ATOMICALLY
+                    // We use the players object from fresh data but ONLY reset status
+                    const pUpdate = {};
+                    pIds.forEach(id => {
+                        pUpdate[`players.${id}.status`] = 'waiting';
+                    });
+
+                    await updateDoc(roomRef, {
+                        currentQuestionIndex: nextIdx,
+                        lastRoundStart: serverTimestamp(),
+                        ...pUpdate
+                    });
+                } else {
+                    await updateDoc(roomRef, { status: 'finished' });
+                }
+            } catch(e) { 
+                console.error("Round transition error:", e); 
+            } finally {
+                isAdvancingRound = false; // Release lock
+            }
+        }, clientGracePeriod);
     }
 }
 

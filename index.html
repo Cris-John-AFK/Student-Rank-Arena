@@ -38,7 +38,21 @@
                  data-ad-slot="4280624651"
                  data-ad-format="auto"
                  data-full-width-responsive="true"></ins>
-            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            <script>
+                (function() {
+                    function pushAd() {
+                        try {
+                            const ins = document.querySelector('.ad-top ins.adsbygoogle');
+                            if (ins && ins.offsetWidth > 0) {
+                                (window.adsbygoogle = window.adsbygoogle || []).push({});
+                            } else {
+                                setTimeout(pushAd, 2000); 
+                            }
+                        } catch(e) {}
+                    }
+                    pushAd();
+                })();
+            </script>
         </div>
         <div class="content-wrapper">
             <div class="ad-space ad-left">
@@ -48,7 +62,22 @@
                      data-ad-slot="4667637465"
                      data-ad-format="auto"
                      data-full-width-responsive="true"></ins>
-                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+                <script>
+                    (function() {
+                        function pushAd() {
+                            try {
+                                const ins = document.querySelector('.ad-left ins.adsbygoogle');
+                                if (ins && ins.offsetWidth > 0) {
+                                    (window.adsbygoogle = window.adsbygoogle || []).push({});
+                                } else {
+                                    // AdLeft is hidden on mobile, so don't be too aggressive
+                                    setTimeout(pushAd, 5000); 
+                                }
+                            } catch(e) {}
+                        }
+                        pushAd();
+                    })();
+                </script>
             </div>
 
             <div id="app">
