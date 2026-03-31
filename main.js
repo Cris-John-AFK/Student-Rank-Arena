@@ -1110,8 +1110,25 @@ function renderAdminPlayers(players) {
 
 window.handleAdminEdit = async function(targetId, field, currentVal) {
     let newVal;
-    if (field === 'isBanned' || field === 'isPremium') {
-        newVal = currentVal; // Toggle is handled by the caller button logic
+    let extraUpdates = {};
+
+    if (field === 'isBanned') {
+        newVal = currentVal;
+    } else if (field === 'isPremium') {
+        if (currentVal) {
+            newVal = false;
+            extraUpdates.plan = null;
+        } else {
+            const p = prompt("Enter Premium plan ('monthly' or 'lifetime'):", "lifetime");
+            if (!p) return;
+            newVal = true;
+            extraUpdates.plan = p.toLowerCase() === 'monthly' ? 'monthly' : 'lifetime';
+            if (extraUpdates.plan === 'monthly') {
+                const expires = new Date();
+                expires.setDate(expires.getDate() + 30);
+                extraUpdates.expiresAt = expires.toISOString();
+            }
+        }
     } else if (field === 'earnedScores') {
         if (!confirm("Clear this user's entire history?")) return;
         newVal = [];
@@ -1119,17 +1136,33 @@ window.handleAdminEdit = async function(targetId, field, currentVal) {
         newVal = prompt(`Enter new value for ${field}:`, currentVal);
         if (newVal === null) return;
         if (field === 'elo' || field === 'score') newVal = parseInt(newVal);
+        
+        // Target both score fields simultaneously to override history
+        if (field === 'score') {
+            extraUpdates.bestScore = newVal;
+        }
     }
     
     showToast("Committing Master Override...");
     try {
-        const update = { [field]: newVal };
+        const update = { [field]: newVal, ...extraUpdates };
         await adminUpdatePlayer(targetId, update);
         showToast("Success: Identity Rewritten 🔮");
-        openAdminConsole(); // Refresh
-        syncGlobalLeaderboard(true); // Force ranking engine to reflect changes
+        
+        openAdminConsole(); // Refresh Admin list
+        
+        // Force ranking engine to re-process AND update the active profile UI
+        syncGlobalLeaderboard(true).then(() => {
+            if (screens.profile.classList.contains('active')) {
+                openProfile(); // Refresh the visual numbers
+            }
+            if (screens.leaderboard.classList.contains('active')) {
+                openLeaderboard(); // Refresh the ranking graphics
+            }
+        });
     } catch (e) {
         showToast("Override Failed: System Resistance");
+        console.error("Admin Edit Error", e);
     }
 }
 
