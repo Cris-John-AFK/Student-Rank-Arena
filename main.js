@@ -183,17 +183,30 @@ function showToast(message) {
     setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 3000);
 }
 
-function updateLandingUI() {
+async function updateLandingUI() {
     const greeting = document.getElementById('user-greeting');
     const loginBtn = document.getElementById('login-guest-btn');
+    const eloBanner = document.getElementById('user-elo-banner');
+    const eloVal = document.getElementById('landing-elo');
+
     if (currentUser) {
         const name = currentUser.displayName || currentUser.email?.split('@')[0] || 'Student';
         document.getElementById('greeting-name').textContent = `Welcome back, ${name}! 👋`;
         greeting.style.display = 'block';
         loginBtn.textContent = '👤 My Profile';
+
+        // Fetch profile to see if they have a rank to show
+        const profile = await getUserProfileData(getPersistentId());
+        if (profile && profile.hasPlacement) {
+            if (eloBanner) eloBanner.style.display = 'inline-block';
+            if (eloVal) eloVal.textContent = profile.elo || 500;
+        } else {
+            if (eloBanner) eloBanner.style.display = 'none';
+        }
     } else {
         greeting.style.display = 'none';
         loginBtn.textContent = '👤 Login / Register';
+        if (eloBanner) eloBanner.style.display = 'none';
     }
 }
 
@@ -377,11 +390,19 @@ function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
 
     if (eloEl) {
         getUserProfileData(myId).then(data => {
-            const elo = data?.elo || (typeof score === 'number' ? (score * 20) + 50 : 500);
+            const hasRank = data?.hasPlacement;
+            const elo = hasRank ? (data.elo || 500) : 'Pending';
             eloEl.textContent = elo;
-            getUserEloRank(elo, myId).then(wRank => {
-                if (wRankEl) wRankEl.textContent = `#${wRank}`;
-            });
+            
+            if (wRankEl) {
+                if (hasRank) {
+                    getUserEloRank(data.elo || 500, myId).then(wRank => {
+                        wRankEl.textContent = `#${wRank}`;
+                    });
+                } else {
+                    wRankEl.textContent = '#—';
+                }
+            }
         });
     }
     
@@ -452,18 +473,20 @@ window._openPublicProfile = async function(entry) {
         const pScore = document.getElementById('public-score');
         const pScoreWorldRank = document.getElementById('public-score-rank');
 
-        const eloValue = data.elo || 500;
+        const eloValue = data.hasPlacement ? (data.elo || 500) : 'Pending';
         // Prefer bestScore over score for most accurate display
         const scoreValue = data.bestScore ?? data.score ?? 0;
 
         if (pElo) pElo.textContent = eloValue;
-        if (pScore) pScore.textContent = `${scoreValue}/100`;
+        if (pScore) pScore.textContent = (data.hasPlacement || data.score !== undefined) ? `${scoreValue}/100` : '—';
 
         if (pEloWorldRank) {
             pEloWorldRank.textContent = '#—';
-            getUserRankByField('elo', eloValue, data.userId || data.id).then(r => {
-                if (pEloWorldRank) pEloWorldRank.textContent = `#${r}`;
-            });
+            if (data.hasPlacement) {
+                getUserRankByField('elo', data.elo || 500, data.userId || data.id).then(r => {
+                    if (pEloWorldRank) pEloWorldRank.textContent = `#${r}`;
+                });
+            }
         }
         if (pScoreWorldRank) {
             pScoreWorldRank.textContent = '#—';
