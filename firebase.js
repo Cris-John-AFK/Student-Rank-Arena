@@ -166,7 +166,20 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
         try {
             if (!user) await signInAnonymously(auth);
             const leaderboardRef = doc(db, 'results', currentUserId);
-            const saveData = { ...resultData, earnedScores: arrayUnion(score) };
+            
+            // 🏅 PERSISTENCE UPGRADE: Ensure 'results' doc keeps your BEST score & your LATEST chosen title
+            const resSnap = await getDoc(leaderboardRef);
+            const existingData = resSnap.data() || {};
+            
+            const bestOverallScore = Math.max(score, existingData.score || 0, existingData.bestScore || 0);
+            
+            const saveData = {
+                ...resultData,
+                score: bestOverallScore, // Leaderboard master score is your personal record
+                earnedScores: arrayUnion(score),
+                lastUpdated: serverTimestamp()
+            };
+            
             await setDoc(leaderboardRef, saveData, { merge: true });
             
             // 🔥 IDENTITY MERGE & CLEANUP: 
@@ -310,37 +323,41 @@ export async function syncGlobalLeaderboard(force = false) {
         }
 
         console.log("🚀 Sync-Engine: Re-aggregating all player ranks...");
-        // Fetch users map for Premium flags AND achievement (permanent, from users table)
-        const usersSnap = await getDocs(collection(db, 'users'));
+        // Fetch users map for Premium flags AND achievement (permanent        const usersSnap = await getDocs(collection(db, 'users'));
         const premiumMap = {};
         const achievementMap = {};
         const earnedScoresMap = {};
+        const typeMap = {};
+        const nameMapFallback = {};
+        
         usersSnap.forEach(doc => {
             const data = doc.data();
             if (data.isPremium) premiumMap[doc.id] = data.isPremium;
             if (data.achievement) achievementMap[doc.id] = data.achievement;
             if (data.earnedScores) earnedScoresMap[doc.id] = data.earnedScores;
+            if (data.type || data.lastType) typeMap[doc.id] = data.type || data.lastType;
+            if (data.displayName) nameMapFallback[doc.id] = data.displayName;
         });
 
         const snap = await getDocs(collection(db, 'results'));
         let rawUsers = [];
         snap.forEach(doc => {
-            if (doc.id === '--GLOBAL_STATE--') return; // Bypass the engine document
+            if (doc.id === '--GLOBAL_STATE--') return; 
             
             const d = doc.data();
             const uid = d.userId || doc.id;
-            // Merge earnedScores from users table too (fix Types Discovered mismatch)
             const resEarned = d.earnedScores || [];
             const userEarned = earnedScoresMap[uid] || [];
             const mergedEarned = [...new Set([...resEarned, ...userEarned])];
+            
             rawUsers.push({
                 docId: doc.id,
                 userId: uid,
-                displayName: d.displayName || "Unknown",
+                displayName: nameMapFallback[uid] || d.displayName || "Unknown",
                 score: d.score || 0,
                 elo: d.elo || 500,
-                type: d.type || "Unknown",
-                // Achievement: users table wins (permanent), fallback to results
+                // Account table persona (typeMap) always wins for registered users!
+                type: typeMap[uid] || d.type || "Unknown",
                 achievement: achievementMap[uid] || achievementMap[doc.id] || d.achievement || "",
                 earnedScores: mergedEarned,
                 isPremium: premiumMap[uid] || premiumMap[doc.id] || false
@@ -392,7 +409,18 @@ export async function syncGlobalLeaderboard(force = false) {
                 const existing = nameMap.get(n);
                 existing.score = Math.max(existing.score, u.score);
                 existing.elo = Math.max(existing.elo, u.elo);
-                existing.type = u.score >= existing.score ? u.type : existing.type;
+                
+                // 🛡️ TITLE PROTECTION: Same as UID dedup, prefer registered identity
+                const uIsReg = (u.userId || "").includes('@');
+                const exIsReg = (existing.userId || "").includes('@');
+                if (uIsReg && !exIsReg) {
+                    existing.type = u.type;
+                    existing.userId = u.userId;
+                    existing.displayName = u.displayName;
+                } else if (uIsReg === exIsReg) {
+                    if (u.score >= existing.score) existing.type = u.type;
+                }
+
                 if (u.achievement) existing.achievement = u.achievement;
                 if (u.isPremium) existing.isPremium = u.isPremium;
                 if (u.earnedScores) {
