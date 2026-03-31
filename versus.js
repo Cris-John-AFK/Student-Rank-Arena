@@ -101,57 +101,50 @@ async function startRandomMatchmaking() {
     document.getElementById('p2-avatar').textContent = '❓';
     document.getElementById('p2-name').textContent = 'Waiting...';
 
-    // 🔒 Atomic matchmaking using a Firestore Transaction
-    // This prevents the race condition where two users press Random at the same time
+    // 🔒 ATOMIC QUEUE MATCHMAKING (v1.1.9)
+    // Eliminates race conditions by locking a central queue document, forcing simultaneous joiners to pair.
     try {
-        const roomsRef = collection(db, 'rooms');
-        const q = query(roomsRef, where('matchStatus', '==', 'searching_random'), limit(5));
-        const snapshot = await getDocs(q);
+        const queueRef = doc(db, 'rooms', '--MATCHMAKING-QUEUE--');
+        let finalRoomId = null;
+        const newRoomId = Math.random().toString(36).substring(2, 10);
 
-        let joined = false;
-        // Try to atomically claim a room
-        for (const roomDoc of snapshot.docs) {
-            try {
-                await runTransaction(db, async (transaction) => {
-                    const freshSnap = await transaction.get(roomDoc.ref);
-                    if (!freshSnap.exists()) throw new Error("Room gone");
-                    const data = freshSnap.data();
-                    // Only join if still genuinely open (race-proof check)
-                    if (data.matchStatus !== 'searching_random' || data.playerCount !== 1) {
-                        throw new Error("Room already taken");
-                    }
-                    const joinerId = getPersistentId();
-                    transaction.update(roomDoc.ref, 
-                        new FieldPath('players', joinerId), {
-                            name: auth.currentUser?.displayName || "Gladiator",
-                            score: 0,
-                            status: 'waiting',
-                            avatar: '⚡'
-                        },
-                        new FieldPath('playerEmails', joinerId), joinerId,
-                        'playerCount', 2,
-                        'matchStatus', 'full'
-                    );
-                });
-                // Transaction succeeded — we're in!
-                joined = true;
-                isHost = false;
-                currentRoomId = roomDoc.id;
-                listenToRoom(roomDoc.id);
-                break;
-            } catch (txErr) {
-                // This room was claimed by someone else at the same instant; try next
-                continue;
+        await runTransaction(db, async (transaction) => {
+            const snap = await transaction.get(queueRef);
+            let queue = snap.exists() ? snap.data().queue || [] : [];
+            
+            // Flush ghosts (older than 15s)
+            const now = Date.now();
+            queue = queue.filter(p => (now - p.time) < 15000);
+
+            // Snag an opponent
+            const opponentIdx = queue.findIndex(p => p.id !== myPlayerId);
+            
+            if (opponentIdx !== -1) {
+                // Match Found!
+                const opponent = queue.splice(opponentIdx, 1)[0];
+                transaction.set(queueRef, { queue }); // Save queue with opponent removed
+                finalRoomId = opponent.roomId;
+            } else {
+                // No opponent, jump into queue to wait
+                // Prevent duplicate enqueue
+                if (!queue.find(p => p.id === myPlayerId)) {
+                    queue.push({ id: myPlayerId, roomId: newRoomId, time: now });
+                    transaction.set(queueRef, { queue });
+                }
+                finalRoomId = 'WAIT:' + newRoomId;
             }
-        }
+        });
 
-        if (!joined) {
-            // No open rooms found — we become the host
-            createRoom('random');
+        if (finalRoomId.startsWith('WAIT:')) {
+            const parsedRoomId = finalRoomId.split(':')[1];
+            createRoom('random', parsedRoomId);
+        } else {
+            // We matched! Jump into their waiting room!
+            await joinRoom(finalRoomId);
         }
     } catch (e) {
-        console.error("Matchmaking error:", e);
-        alert("Arena Error: Make sure your Firestore Rules allow 'rooms' collection access!");
+        console.error("Matchmaking Queue error:", e);
+        alert("Arena Connection Error: Retrying connection...");
         showVsScreen('landing');
     }
 }
@@ -556,17 +549,17 @@ function checkRoundOver(data) {
                 }
 
                 if (nextIdx < 10) {
-                    // Update current question index and reset player statuses ATOMICALLY
-                    // We use the players object from fresh data but ONLY reset status
-                    const pUpdate = {};
-                    pIds.forEach(id => {
-                        pUpdate[`players.${id}.status`] = 'waiting';
+                    // 🛡️ SCORE PRESERVATION: Clone the entire players object and reset statuses natively
+                    // This bypasses Firebase's dot notation shredding entirely!
+                    const newPlayers = { ...freshData.players };
+                    Object.keys(newPlayers).forEach(id => {
+                        newPlayers[id].status = 'waiting';
                     });
 
                     await updateDoc(roomRef, {
                         currentQuestionIndex: nextIdx,
                         lastRoundStart: serverTimestamp(),
-                        ...pUpdate
+                        players: newPlayers
                     });
                 } else {
                     await updateDoc(roomRef, { status: 'finished' });
