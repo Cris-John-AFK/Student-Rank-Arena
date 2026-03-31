@@ -1,6 +1,7 @@
 import { questions } from './questions.js';
 import { studentTypesDict } from './studentTypes.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, fetchLeaderboardAround, getUserEloRank, getUserRankByField, getPersistentId, db } from './firebase.js';
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, fetchLeaderboardAround, getUserEloRank, getUserRankByField, getPersistentId, db, syncGlobalLeaderboard } from './firebase.js';
+import { doc, updateDoc } from "firebase/firestore";
 import { initVersus } from './versus.js';
 
 // ====== DOM Screens ======
@@ -621,7 +622,6 @@ async function handleSaveProfileEdit(e) {
         }
 
         // 3. Force-trigger the Global Rank Engine so it updates the Leaderboard Cache
-        const { syncGlobalLeaderboard } = await import('./firebase.js');
         syncGlobalLeaderboard(true); 
         
         // 4. Instant UI Refresh
