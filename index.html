@@ -295,7 +295,10 @@
                 <!-- VS HUD -->
                 <div class="vs-hud">
                     <div class="player-stat left">
-                        <span id="vs-my-name" class="vs-name">You</span>
+                        <div class="vs-name-row">
+                            <span class="ready-dot" id="vs-my-dot"></span>
+                            <span id="vs-my-name" class="vs-name">You</span>
+                        </div>
                         <span id="vs-my-score" class="vs-score">0</span>
                     </div>
                     <div class="vs-timer-container">
@@ -303,8 +306,11 @@
                         <span id="vs-timer-text" class="vs-timer-text">5s</span>
                     </div>
                     <div class="player-stat right">
+                        <div class="vs-name-row">
+                            <span id="vs-opp-name" class="vs-name">...</span>
+                            <span class="ready-dot" id="vs-opp-dot"></span>
+                        </div>
                         <span id="vs-opp-score" class="vs-score">0</span>
-                        <span id="vs-opp-name" class="vs-name">...</span>
                     </div>
                 </div>
 
@@ -312,7 +318,7 @@
                     <span id="vs-q-count">Question 1/10</span>
                     <span id="vs-category" class="badge badge-neon">General Knowledge</span>
                 </div>
-                <div class="quiz-content">
+                <div class="quiz-content no-select">
                     <h3 id="vs-q-text">Loading question...</h3>
                     <div id="vs-options" class="options"></div>
                 </div>

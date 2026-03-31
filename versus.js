@@ -88,6 +88,29 @@ export function initVersus() {
     document.getElementById('vs-back-btn').addEventListener('click', () => {
         leaveRoom();
     });
+
+    // 🛡️ ANTI-CHEAT: Tab-switch penalty during active match
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && vsStatus === 'playing' && !isLocalAnswered) {
+            console.warn('🚨 Anti-cheat: Tab switch detected!');
+            // Drain timer bar visually for maximum effect
+            const bar = document.getElementById('vs-count-bar');
+            if (bar) bar.style.width = '0%';
+            // Auto-submit WRONG — this resets their chance at speed bonus too
+            submitVsAnswer(false, null);
+            // Show a cheat warning toast (imported from main if available, else fallback)
+            const toastFn = window.showToast || ((msg) => {
+                const container = document.getElementById('toast-container');
+                if (!container) return;
+                const t = document.createElement('div');
+                t.className = 'toast cheat-toast';
+                t.textContent = msg;
+                container.appendChild(t);
+                setTimeout(() => t.remove(), 3200);
+            });
+            toastFn('⚠️ TAB SWITCH DETECTED! Question marked WRONG as penalty!');
+        }
+    });
 }
 
 async function startRandomMatchmaking() {
@@ -309,15 +332,20 @@ function listenToRoom(roomId) {
             const oppData = oppId ? data.players[oppId] : null;
 
             if (myData) {
-                document.getElementById('vs-my-name').textContent = "You" + (myData.status === 'answered' ? ' ✨' : '');
+                document.getElementById('vs-my-name').textContent = "You";
                 document.getElementById('vs-my-score').textContent = myData.score || 0;
                 vsScore = myData.score || 0;
+                // 🟢 Animate the status dot instead of emoji
+                const myDot = document.getElementById('vs-my-dot');
+                if (myDot) myDot.classList.toggle('dot-ready', myData.status === 'answered');
             }
             if (oppData) {
-                // 📡 Instantly alert the user if opponent locks in an answer!
-                document.getElementById('vs-opp-name').textContent = oppData.name + (oppData.status === 'answered' ? ' ✨' : '');
+                document.getElementById('vs-opp-name').textContent = oppData.name;
                 document.getElementById('vs-opp-score').textContent = oppData.score || 0;
                 vsOpponentScore = oppData.score || 0;
+                // 🟢 Opponent ready dot
+                const oppDot = document.getElementById('vs-opp-dot');
+                if (oppDot) oppDot.classList.toggle('dot-ready', oppData.status === 'answered');
             }
 
             // Sync transitions (Force skip if stuck)
@@ -446,6 +474,12 @@ function renderVsQuestion() {
         btn.onclick = () => submitVsAnswer(opt === q.correct, opt);
         container.appendChild(btn);
     });
+
+    // Reset ready dots at start of each new question
+    const myDot = document.getElementById('vs-my-dot');
+    const oppDot = document.getElementById('vs-opp-dot');
+    if (myDot) myDot.classList.remove('dot-ready');
+    if (oppDot) oppDot.classList.remove('dot-ready');
 
     startVsTimer();
 }
