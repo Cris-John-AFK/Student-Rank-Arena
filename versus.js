@@ -946,9 +946,7 @@ let blitzScore = 0;
 let blitzOppScore = 0;
 let blitzAnswered = false;
 let blitzGlobalInterval = null; // 60s shared countdown
-let blitzQInterval = null;      // 5s per-question auto-advance
 let blitzTimeLeft = 60;
-let blitzQTimeLeft = 5; 
 let blitzListener = null;
 
 async function startBlitzMatchmaking() {
@@ -1062,7 +1060,8 @@ function listenToBlitzRoom(roomId) {
             blitzQuestions = data.questions;
             blitzStatus = 'playing';
             blitzScore = 0;
-            blitzOppScore = 0;
+            vsScore = 0; // Use shared vsScore for HUD sync
+            vsOpponentScore = 0;
             blitzCurrentIndex = 0;
             blitzTimeLeft = 60;
             showVsScreen('blitz-quiz');
@@ -1166,7 +1165,7 @@ function renderBlitzQuestion() {
         return;
     }
     // Endless mode — remove the "/ 10" cap
-    document.getElementById('blitz-q-count').textContent = `Q ${blitzCurrentIndex + 1} (Score: ${vsScore})`;
+    document.getElementById('blitz-q-count').textContent = `SPEED RACE! (Score: ${vsScore})`;
     
     // 🔥 Localized Category Name for Blitz
     const topic = BATTLE_TOPICS.find(t => t.id === q.categoryId) || { name: q.category || "Blitz" };
@@ -1180,34 +1179,14 @@ function renderBlitzQuestion() {
         btn.className = 'option-btn';
         btn.innerHTML = opt;
         btn.dataset.rawopt = opt;
-        if (window._isAdmin && opt === q.correct) {
-            btn.style.border = '2px solid #10b981';
-        }
         btn.onclick = () => submitBlitzAnswer(opt === q.correct, opt);
         container.appendChild(btn);
     });
 
-    // Reset dots + answered guard
+    // Reset answered guard
     blitzAnswered = false;
-    const md = document.getElementById('blitz-my-dot');
-    const od = document.getElementById('blitz-opp-dot');
-    if (md) md.classList.remove('dot-ready');
-    if (od) od.classList.remove('dot-ready');
-
-    // Per-question 5s auto-advance bar
-    if (blitzQInterval) clearInterval(blitzQInterval);
-    blitzQTimeLeft = 5;
     const bar = document.getElementById('blitz-q-bar');
-    if (bar) bar.style.width = '100%';
-    blitzQInterval = setInterval(() => {
-        blitzQTimeLeft -= 0.1;
-        const pct = (blitzQTimeLeft / 5) * 100;
-        if (bar) bar.style.width = `${Math.max(0, pct)}%`;
-        if (blitzQTimeLeft <= 0) {
-            clearInterval(blitzQInterval);
-            advanceBlitzQuestion();
-        }
-    }, 100);
+    if (bar) bar.style.display = 'none'; // Hide per-question bar
 }
 
 async function submitBlitzAnswer(isCorrect, selectedOpt) {
@@ -1224,16 +1203,22 @@ async function submitBlitzAnswer(isCorrect, selectedOpt) {
     });
 
     // +15 correct, -5 wrong (floor at 0)
-    if (isCorrect) blitzScore += 15;
-    else blitzScore = Math.max(0, blitzScore - 5);
-    document.getElementById('blitz-my-score').textContent = blitzScore;
+    if (isCorrect) vsScore += 15;
+    else vsScore = Math.max(0, vsScore - 5);
+    document.getElementById('blitz-my-score').textContent = vsScore;
+
+    // Instant local advancement after 0.6s to see the feedback
+    setTimeout(() => {
+        if (blitzStatus !== 'playing') return;
+        blitzCurrentIndex++;
+        renderBlitzQuestion();
+    }, 600);
 
     try {
         await updateDoc(doc(db, 'rooms', currentRoomId),
-            new FieldPath('players', myPlayerId, 'score'), blitzScore,
-            new FieldPath('players', myPlayerId, 'status'), 'answered'
+            new FieldPath('players', myPlayerId, 'score'), vsScore
         );
-    } catch(e) { /* Room already closed */ }
+    } catch(e) { }
 }
 
 function advanceBlitzQuestion() {
