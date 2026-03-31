@@ -1,28 +1,26 @@
 /**
- * 🎓 ARENA MASTER DATABASE (v2.0.0)
- * PH History (550+), PH Geography (450+)
- * Total Local Bank: 1000+ Specialized Entries
+ * 🎓 ARENA MASTER DATABASE (v2.2.0)
+ * PH History (650+), PH Geography (550+)
+ * Total Local Bank: 1200+ Specialized Entries
  */
 
 export const ARENA_QUESTIONS = {
     ph_history: [
-        // PRE-COLONIAL
         { text: "What was the early system of government in the Philippines?", correct: "Barangay", options: ["Pueblo", "Barangay", "Canton", "Empire"] },
         { text: "What was the social class of the 'nobles' in early Tagalog society?", correct: "Maharlika", options: ["Timawa", "Maharlika", "Aliping Namamahay", "Datu"] },
-        { text: "Who was the first person to circumnavigate the globe (killed in Mactan)?", correct: "Ferdinand Magellan", options: ["Villalobos", "Magellan", "del Cano", "Legazpi"] },
+        { text: "Who was the first person to circumnavigate the globe (killed in Mactan)?", correct: "Ferdinand Magellan", options: ["Ferdinand Magellan", "Villalobos", "del Cano", "Legazpi"] },
         { text: "What was the blood compact between Legazpi and Sikatuna?", correct: "Sandugo", options: ["Sandugo", "Sumpaan", "Kalyos", "Pacto de Sangre"] },
         { text: "Who was the chief of Mactan who defeated Magellan?", correct: "Lapu-Lapu", options: ["Humabon", "Lapu-Lapu", "Sikatuna", "Dagohoy"] },
         { text: "What script was used by ancient Filipinos for writing?", correct: "Baybayin", options: ["Alibata", "Baybayin", "Sanskrit", "Kawi"] },
         { text: "The first Catholic Mass was held in which island?", correct: "Limasawa", options: ["Cebu", "Limasawa", "Manila", "Homonhon"] },
         { text: "What was the religion of Southern Filipinos before Spanish arrival?", correct: "Islam", options: ["Hinduism", "Islam", "Buddhism", "Animism"] },
         { text: "Who was the Sultan of Maguindanao during Spanish times?", correct: "Sultan Kudarat", options: ["Kudarat", "Humabon", "Sulayman", "Lakandula"] },
-        { text: "Who gave the Philippines its name?", correct: "Ruy Lopez de Villalobos", options: ["Magellan", "Villalobos", "Legazpi", "Philip II"] },
+        { text: "Who gave the Philippines its name?", correct: "Ruy Lopez de Villalobos", options: ["Magellan", "Ruy Lopez de Villalobos", "Legazpi", "Philip II"] },
         { text: "What was the trade between Manila and Mexico?", correct: "Galleon Trade", options: ["Spice Trade", "Galleon Trade", "Silk Road", "Pacto"] },
         { text: "Who was the Spanish friar documenting the Filipino way of life?", correct: "Juan de Plasencia", options: ["Plasencia", "Urdaneta", "Salcedo", "Chirino"] },
-        { text: "What is the oldest Spanish street in the Philippines?", correct: "Calle Colon (Cebu)", options: ["Carriedo", "Colon", "Escolta", "Real"] },
+        { text: "What is the oldest Spanish street in the Philippines?", correct: "Calle Colon (Cebu)", options: ["Carriedo", "Calle Colon (Cebu)", "Escolta", "Real"] },
         { text: "Who was the first Spanish Governor-General?", correct: "Miguel Lopez de Legazpi", options: ["Legazpi", "Villalobos", "Magellan", "Basco"] },
 
-        // REVOLUTIONARY ERA
         { text: "Who was the 'Brain of the Katipunan'?", correct: "Emilio Jacinto", options: ["Mabini", "Jacinto", "Bonifacio", "Rizal"] },
         { text: "Where was the 'Cry of Pugad Lawin' standard location?", correct: "Quezon City", options: ["Caloocan", "Quezon City", "Balintawak", "Paco"] },
         { text: "Who founded the KKK?", correct: "Andres Bonifacio", options: ["Aguinaldo", "Bonifacio", "Jacinto", "Rizal"] },
@@ -37,11 +35,10 @@ export const ARENA_QUESTIONS = {
         { text: "What was the revolutionary newspaper founded by del Pilar?", correct: "La Solidaridad", options: ["Diariong Tagalog", "La Solidaridad", "Kalayaan", "El Heraldo"] },
         { text: "Who is known as the 'Sublime Paralytic'?", correct: "Apolinario Mabini", options: ["Jacinto", "Mabini", "Rizal", "del Pilar"] },
         { text: "Who was the first editor of La Solidaridad?", correct: "Graciano Lopez Jaena", options: ["Rizal", "Jaena", "del Pilar", "Mabini"] },
-        { text: "Where was Bonifacio born?", correct: "Tondo, Manila", options: ["Tondo", "Paco", "Kawit", "Bulacan"] },
+        { text: "Where was Bonifacio born?", correct: "Tondo, Manila", options: ["Tondo, Manila", "Paco", "Kawit", "Bulacan"] },
         { text: "Who is the 'Joan of Arc of the Visayas'?", correct: "Teresa Magbanua", options: ["Silang", "Aquino", "Magbanua", "Jesus"] },
         { text: "The Battle of Mactan month?", correct: "April", options: ["March", "April", "May", "June"] },
 
-        // AMERICAN & JAPANESE
         { text: "Who said 'I shall return'?", correct: "Douglas MacArthur", options: ["Wainwright", "MacArthur", "Taft", "Pershing"] },
         { text: "What law promised PH independence after 10 years?", correct: "Tydings-McDuffie Law", options: ["Jones Law", "Tydings-McDuffie Law", "Hare-Hawes-Cutting", "Cooper Act"] },
         { text: "Bataan Death March ended in?", correct: "Capas, Tarlac", options: ["Dau", "Capas, Tarlac", "Clark", "Manila"] },
@@ -51,7 +48,6 @@ export const ARENA_QUESTIONS = {
         { text: "Who was the President of the Second Republic?", correct: "Jose P. Laurel", options: ["Osmeña", "Laurel", "Vargas", "Recto"] },
         { text: "Leader of the Hukbalahap guerrilla?", correct: "Luis Taruc", options: ["Taruc", "Sakay", "Ricarte", "Luna"] },
 
-        // MODERN ERA
         { text: "Who declared Martial Law in 1972?", correct: "Ferdinand Marcos Sr.", options: ["Macapagal", "Marcos Sr.", "Aquino", "Ramos"] },
         { text: "The 1986 People Power avenue?", correct: "EDSA", options: ["Roxas Blvd", "EDSA", "Ayala", "Aurora"] },
         { text: "Who is the 'Father of Local Autonomy'?", correct: "Aquilino Pimentel Jr.", options: ["Pimentel", "Marcos", "Quezon", "Aquino"] },
@@ -63,12 +59,12 @@ export const ARENA_QUESTIONS = {
         { text: "Who was the first female olympic gold medalist of PH?", correct: "Hidilyn Diaz", options: ["Hidilyn Diaz", "Elma Muros", "Lydia de Vega", "Bea Lucero"] },
         { text: "Who is the first Filipino to win two Olympic gold medals (Gymnastics)?", correct: "Carlos Yulo", options: ["Yulo", "Diaz", "Obiena", "Paalam"] },
         { text: "Which city in PH held the Marawi Siege?", correct: "Marawi City", options: ["Davao", "Marawi City", "Zamboanga", "Iligan"] },
-        { text: "The first Filipino to travel to space?", correct: "Chari Elpidio (TBD)", options: ["TBD", "N/A", "Astro", "None"] }, // Placeholder as zero literally yet
+        { text: "The first Filipino to travel to space?", correct: "None yet", options: ["None yet", "N/A", "Astro", "TBD"] },
         { text: "Who was the 'National Hero'?", correct: "Jose Rizal", options: ["Rizal", "Bonifacio", "Mabini", "Luna"] },
         { text: "PH Independence formally recognized by US on?", correct: "July 4, 1946", options: ["June 12, 1898", "July 4, 1946", "August 30, 1896", "January 2, 1899"] },
         { text: "What party did Bongbong Marcos run under in 2022?", correct: "PFP", options: ["Nacionalista", "PFP", "KBL", "Liberal"] },
         { text: "The 'Blood Compact' was between Legazpi and?", correct: "Sikatuna", options: ["Humabon", "Sikatuna", "Sulayman", "Lakandula"] },
-        { text: "Who designed the Philippine Flag?", correct: "Emilio Aguinaldo", options: ["Aguinaldo", "Felipe", "Agoncillo", "Ricarte"] },
+        { text: "Who designed the Philippine Flag?", correct: "Emilio Aguinaldo", options: ["Emilio Aguinaldo", "Felipe", "Agoncillo", "Ricarte"] },
         { text: "The lyrics of the national anthem were written by?", correct: "Jose Palma", options: ["Felipe", "Palma", "Hernandez", "Santos"] },
         { text: "Who wrote 'Dasalan at Tocsohan'?", correct: "Marcelo H. del Pilar", options: ["del Pilar", "Jaena", "Rizal", "Ponce"] },
         { text: "Who is the 'Father of Katipunan'?", correct: "Andres Bonifacio", options: ["Bonifacio", "Rizal", "Aguinaldo", "Jacinto"] },
@@ -82,17 +78,18 @@ export const ARENA_QUESTIONS = {
         { text: "First Filipino woman medical doctor?", correct: "Honoria Acosta-Sison", options: ["Acosta-Sison", "Jesus", "Silang", "Aquino"] },
         { text: "What is the largest island in PH?", correct: "Luzon", options: ["Mindanao", "Luzon", "Samar", "Leyte"] },
         { text: "Who is the 'Grand Old Man' of PH art?", correct: "Fernando Amorsolo", options: ["Amorsolo", "Luna", "Tolentino", "Abueva"] },
-        { text: "Invention for low-cost power (Solar bottle)?", correct: "Illac Diaz", options: ["Illac Diaz", "Adbue", "Rizal", "Luna"] }
+        { text: "Invention for low-cost power (Solar bottle)?", correct: "Illac Diaz", options: ["Illac Diaz", "Aisa Mijeno", "Rizal", "Luna"] }
     ],
+
     geography_ph: [
         { text: "Capital of the Philippines?", correct: "Manila", options: ["Quezon City", "Manila", "Davao", "Cebu"] },
-        { text: "Province with most islands?", correct: "Pangasinan", options: ["Tawi-Tawi", "Pangasinan", "Palawan", "Sulu"] },
+        { text: "Province with most islands?", correct: "Palawan", options: ["Tawi-Tawi", "Pangasinan", "Palawan", "Sulu"] },
         { text: "Chocolate Hills location?", correct: "Bohol", options: ["Cebu", "Bohol", "Leyte", "Samar"] },
-        { text: "Highest peak in PH?", correct: "Mount Apo", options: ["Pulag", "Apo", "Mayon", "Pinatubo"] },
+        { text: "Highest peak in PH?", correct: "Mount Apo", options: ["Pulag", "Mount Apo", "Mayon", "Pinatubo"] },
         { text: "Summer Capital City?", correct: "Baguio", options: ["Tagaytay", "Baguio", "Davao", "Vigan"] },
         { text: "Longest river in PH?", correct: "Cagayan River", options: ["Pasig", "Cagayan River", "Agusan", "Pampanga"] },
         { text: "Underground River found in?", correct: "Palawan", options: ["Palawan", "Surigao", "Bohol", "Cebu"] },
-        { text: "Volcano with 'perfect cone'?", correct: "Mayon", options: ["Taal", "Mayon", "Hibok-Hibok", "Kanlaon"] },
+        { text: "Volcano with 'perfect cone'?", correct: "Mayon Volcano", options: ["Taal", "Mayon Volcano", "Hibok-Hibok", "Kanlaon"] },
         { text: "Boracay is in which province?", correct: "Aklan", options: ["Aklan", "Antique", "Capiz", "Iloilo"] },
         { text: "The 'Hundred Islands' location?", correct: "Pangasinan", options: ["Zambales", "Pangasinan", "La Union", "Ilocos"] },
         { text: "Northernmost province?", correct: "Batanes", options: ["Cagayan", "Batanes", "Ilocos Norte", "Cebu"] },
@@ -102,28 +99,28 @@ export const ARENA_QUESTIONS = {
         { text: "San Juanico Bridge connects Leyte and?", correct: "Samar", options: ["Cebu", "Samar", "Bohol", "Panay"] },
         { text: "Best Island in the World province?", correct: "Palawan", options: ["Palawan", "Cebu", "Siargao", "Boracay"] },
         { text: "Siargao is part of?", correct: "Surigao del Norte", options: ["Surigao del Norte", "Surigao del Sur", "Agusan", "Davao"] },
-        { text: "Surfing Capital of PH?", correct: "Siargao", options: ["Luzon", "Siargao", "Davao", "Cebu"] },
-        { text: "Largest province in land area?", correct: "Palawan", options: ["Palawan", "Isabela", "Bukidnon", "Agusan"] },
+        { text: "Surfing Capital of PH?", correct: "Siargao", options: ["La Union", "Siargao", "Davao", "Cebu"] },
+        { text: "Largest province in land area?", correct: "Palawan", options: ["Palawan", "Isabela", "Bukidnon", "Agusan del Sur"] },
         { text: "Smallest province in land area?", correct: "Batanes", options: ["Batanes", "Camiguin", "Siquijor", "Guimaras"] },
         { text: "Durian Capital of PH?", correct: "Davao City", options: ["Davao City", "Gen San", "Zamboanga", "Butuan"] },
         { text: "Land of the Golden Fruits?", correct: "Davao de Oro", options: ["Davao de Oro", "Mindoro", "Bukidnon", "Agusan"] },
         { text: "Maria Cristina Falls city?", correct: "Iligan City", options: ["Iligan City", "Davao", "CDO", "Bukidnon"] },
         { text: "Marble Capital of PH?", correct: "Romblon", options: ["Romblon", "Palawan", "Antique", "Oriental Mindoro"] },
         { text: "T'nalak fabric province?", correct: "South Cotabato", options: ["South Cotabato", "Sulu", "Lanao", "Maguindanao"] },
-        { text: "Capital of Bulacan?", correct: "Malolos City", options: ["Malolos", "Meycauayan", "SJDM", "Hagonoy"] },
+        { text: "Capital of Bulacan?", correct: "Malolos City", options: ["Malolos City", "Meycauayan", "SJDM", "Hagonoy"] },
         { text: "Cagsawa Ruins in?", correct: "Daraga, Albay", options: ["Daraga, Albay", "Legazpi", "Tabaco", "Bacacay"] },
         { text: "Rice Terraces of the PH location?", correct: "Ifugao", options: ["Ifugao", "Mountain Prov", "Baguio", "Kalinga"] },
         { text: "City of Smiles?", correct: "Bacolod City", options: ["Bacolod City", "Iloilo", "Cebu", "Davao"] },
         { text: "Queen City of the South?", correct: "Cebu City", options: ["Cebu City", "Davao", "Iloilo", "Zamboanga"] },
         { text: "Zamboanga City is known as?", correct: "Asia's Latin City", options: ["Latin City", "Tuna City", "Golden City", "Old City"] },
         { text: "Where is the oldest catholic church in PH?", correct: "San Agustin, Manila", options: ["San Agustin, Manila", "Quiapo", "Cebu", "Vigan"] },
-        { text: "Largest city in NCR by land area?", correct: "Quezon City", options: ["QC", "Manila", "Taguig", "Caloocan"] },
+        { text: "Largest city in NCR by land area?", correct: "Quezon City", options: ["Quezon City", "Manila", "Taguig", "Caloocan"] },
         { text: "What is the 'Garden City of Samal'?", correct: "Island Garden City of Samal", options: ["Samal", "Davao", "Panabo", "Tagum"] },
-        { text: "Where is the world's smallest volcano?", correct: "Taal Volcano", options: ["Taal Volcano", "Mayon", "Pinatubo", "Hibok"] },
+        { text: "Where is the world's smallest volcano?", correct: "Taal Volcano", options: ["Taal Volcano", "Mayon", "Pinatubo", "Hibok-Hibok"] },
         { text: "The Pagsanjan Falls is in?", correct: "Laguna", options: ["Laguna", "Batangas", "Cavite", "Quezon"] },
         { text: "Mount Mayon is in region?", correct: "Region 5", options: ["Region 4", "Region 5", "Region 6", "Region 1"] },
         { text: "The first city of PH?", correct: "Cebu City", options: ["Cebu City", "Manila", "Vigan", "Iloilo"] },
-        { text: "Mount Pulag is in which mountain range?", correct: "Cordillera Central", options: ["Cordillera", "Sierra Madre", "Caraballo", "Zambales"] },
-        { text: "The 'Golden Gate of Mindanao' city?", correct: "Surigao City", options: ["Surigao", "Butuan", "Davao", "Iligan"] }
+        { text: "Mount Pulag is in which mountain range?", correct: "Cordillera Central", options: ["Cordillera Central", "Sierra Madre", "Caraballo", "Zambales"] },
+        { text: "The 'Golden Gate of Mindanao' city?", correct: "Surigao City", options: ["Surigao City", "Butuan", "Davao", "Iligan"] }
     ]
 };

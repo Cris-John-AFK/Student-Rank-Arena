@@ -1223,18 +1223,8 @@ async function submitBlitzAnswer(isCorrect, selectedOpt) {
 
 function advanceBlitzQuestion() {
     if (blitzStatus !== 'playing') return;
-    clearInterval(blitzQInterval);
     blitzCurrentIndex++;
     if (blitzCurrentIndex < blitzQuestions.length && blitzTimeLeft > 0) {
-        // Reset player statuses atomically (clone to avoid dot-notation shredding)
-        if (isHost) {
-            getDoc(doc(db, 'rooms', currentRoomId)).then(snap => {
-                if (!snap.exists()) return;
-                const newPlayers = { ...snap.data().players };
-                Object.keys(newPlayers).forEach(id => { newPlayers[id].status = 'waiting'; });
-                updateDoc(doc(db, 'rooms', currentRoomId), { currentQuestionIndex: blitzCurrentIndex, players: newPlayers });
-            });
-        }
         renderBlitzQuestion();
     } else if (blitzTimeLeft <= 0 || blitzCurrentIndex >= blitzQuestions.length) {
         if (isHost) updateDoc(doc(db, 'rooms', currentRoomId), { status: 'blitz_finished' });
@@ -1244,7 +1234,6 @@ function advanceBlitzQuestion() {
 function finishBlitzGame(data) {
     blitzStatus = 'finished';
     clearInterval(blitzGlobalInterval);
-    clearInterval(blitzQInterval);
 
     document.getElementById('blitz-final-my-score').textContent = blitzScore;
     document.getElementById('blitz-final-opp-score').textContent = blitzOppScore;
