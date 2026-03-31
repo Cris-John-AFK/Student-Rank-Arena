@@ -1098,10 +1098,13 @@ function renderAdminPlayers(players) {
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;">
                 <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'elo', '${p.elo || 500}')">Edit Elo</button>
                 <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'score', '${p.score || 0}')">Edit Score</button>
-                <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'achievement', '${p.achievement || ""}')">Badge</button>
-                <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'isPremium', ${!!p.isPremium})">${p.isPremium ? 'Un-Prem' : 'Make Prem'}</button>
+                <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'achievement', '${String(p.achievement || "").replace(/'/g, "\\'")}')">Set Badge</button>
+                
+                <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'addDiscovered', '')">Add Type</button>
+                <button class="btn btn-sm" style="background: ${p.isPremium ? '#f59e0b' : '#3b82f6'}" onclick="handleAdminEdit('${p.userId || p.id}', 'isPremium', ${!!p.isPremium})">${p.isPremium ? 'Un-Prem' : 'Make Prem'}</button>
                 <button class="btn btn-sm" style="background: ${isBanned ? '#10b981' : '#ef4444'}" onclick="handleAdminEdit('${p.userId || p.id}', 'isBanned', ${!isBanned})">${isBanned ? 'Unban' : 'BAN'}</button>
-                <button class="btn btn-sm" style="background: #a855f7;" onclick="handleAdminEdit('${p.userId || p.id}', 'earnedScores', 'CLEAR')">Clear History</button>
+                
+                <button class="btn btn-sm" style="background: #a855f7; grid-column: span 3;" onclick="handleAdminEdit('${p.userId || p.id}', 'earnedScores', 'CLEAR')">Clear Type History</button>
             </div>
         `;
         list.appendChild(div);
@@ -1129,9 +1132,23 @@ window.handleAdminEdit = async function(targetId, field, currentVal) {
                 extraUpdates.expiresAt = expires.toISOString();
             }
         }
+    } else if (field === 'addDiscovered') {
+        const scoreToAdd = prompt("Enter the SCORE (0-100) of the Persona Type you want to unlock:");
+        if (scoreToAdd === null) return;
+        const parsed = parseInt(scoreToAdd);
+        if (isNaN(parsed) || parsed < 0 || parsed > 100) return alert("Must be 0-100");
+        
+        // Fetch current array and inject the new unlock
+        const profile = await getUserProfileData(targetId);
+        const currentEarned = profile?.earnedScores || [];
+        newVal = [...new Set([...currentEarned, parsed])]; 
+        field = 'earnedScores'; // Route backend write to historical array
     } else if (field === 'earnedScores') {
         if (!confirm("Clear this user's entire history?")) return;
         newVal = [];
+    } else if (field === 'achievement') {
+        newVal = prompt(`Enter Badge Name exactly (e.g. "The Creator 👑"). Leave blank to remove:`, currentVal);
+        if (newVal === null) return;
     } else {
         newVal = prompt(`Enter new value for ${field}:`, currentVal);
         if (newVal === null) return;
