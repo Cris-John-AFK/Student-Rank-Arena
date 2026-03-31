@@ -231,15 +231,24 @@ window._leaderboardCache = {};
 async function renderLeaderboard(tab) {
     const list = document.getElementById('leaderboard-list');
     const teaser = document.getElementById('lb-premium-teaser');
-    list.innerHTML = '<div class="lb-loading">Fetching real rankings...</div>';
+    list.innerHTML = '<div class="lb-loading">Fetching real-time rankings...</div>';
 
-    const { syncGlobalLeaderboard } = await import('./firebase.js');
-    await syncGlobalLeaderboard();
+    const { syncGlobalLeaderboard, fetchLeaderboard } = await import('./firebase.js');
+    
+    // ⚡ PERFORMANCE WIN: Fetch existing state first (Instant)
+    let fullData = await fetchLeaderboard(tab === 'elo' ? 'elo' : 'score');
+    
+    // If no state exists yet, force a sync. Otherwise, only run it in background if needed.
+    if (!fullData || fullData.length === 0) {
+        await syncGlobalLeaderboard(true); 
+        fullData = await fetchLeaderboard(tab === 'elo' ? 'elo' : 'score');
+    } else {
+        // Run sync-engine in background for others
+        syncGlobalLeaderboard(false); 
+    }
 
     const myId = getPersistentId();
     let displayData = [];
-
-    const fullData = await fetchLeaderboard(tab === 'elo' ? 'elo' : 'score');
     
     // UI Cap: Show top 50
     displayData = fullData.slice(0, 50);

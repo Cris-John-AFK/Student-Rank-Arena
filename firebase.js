@@ -186,8 +186,8 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
                 } catch(ee){ console.error("Identity Merge Error:", ee); }
             }
             
-            // Auto-trigger the central Global Rank Engine sync
-            await syncGlobalLeaderboard();
+            // Auto-trigger the central Global Rank Engine sync in the background
+            syncGlobalLeaderboard(true); 
             
             return { success: true, displayName, userId: currentUserId, isNewElo, elo: eloToReturn };
         } catch (e) {
@@ -290,9 +290,26 @@ export async function fetchUserResults(userId) {
     } catch (e) { console.error("User results fetch failed:", e); return []; }
 }
 
-export async function syncGlobalLeaderboard() {
+export async function syncGlobalLeaderboard(force = false) {
     if (!isFirebaseConfigured) return;
+
     try {
+        const globalRef = doc(db, 'results', '--GLOBAL_STATE--');
+        const stateSnap = await getDoc(globalRef);
+        
+        // 🕒 COOPERATIVE THROTTLING: 
+        // Only run the heavy O(N) sync if data is more than 15 mins old (or forced)
+        if (stateSnap.exists() && !force) {
+            const data = stateSnap.data();
+            const lastUpdate = data.lastUpdated?.toMillis() || 0;
+            const elapsed = Date.now() - lastUpdate;
+            if (elapsed < 900000) { // 15 minutes chill period
+                console.log(`Leaderboard is fresh (updated ${Math.round(elapsed/1000)}s ago). Skipping Sync Engine.`);
+                return;
+            }
+        }
+
+        console.log("🚀 Sync-Engine: Re-aggregating all player ranks (Syncing users & results)...");
         // Fetch users map for Premium flags AND achievement (permanent, from users table)
         const usersSnap = await getDocs(collection(db, 'users'));
         const premiumMap = {};
