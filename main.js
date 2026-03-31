@@ -177,6 +177,11 @@ function setupEventListeners() {
 function showScreen(screenId) {
     Object.values(screens).forEach(s => { if (s) s.classList.remove('active'); });
     if (screens[screenId]) screens[screenId].classList.add('active');
+    
+    // 🔥 LIVE REFRESH: If we navigate back to the main lobby, automatically fetch any new DB edits
+    if (screenId === 'landing') {
+        updateLandingUI();
+    }
 }
 
 function showModal(modalId) { modals[modalId].classList.add('visible'); }
