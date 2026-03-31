@@ -260,7 +260,11 @@ export async function getUserProfileData(id) {
             const userDoc = await getDoc(doc(db, 'users', id));
             if (userDoc.exists()) {
                 const userData = userDoc.data();
-                combinedData = { ...combinedData, ...userData };
+                // Merge everything BUT let results.type win for manual selections
+                const resType = combinedData.type; 
+                combinedData = { ...userData, ...combinedData };
+                if (resType) combinedData.type = resType;
+
                 // Achievement from users table is PERMANENT and always wins
                 if (userData.achievement) combinedData.achievement = userData.achievement;
                 // Merge earnedScores from both tables
@@ -298,18 +302,14 @@ export async function syncGlobalLeaderboard(force = false) {
         const stateSnap = await getDoc(globalRef);
         
         // 🕒 COOPERATIVE THROTTLING: 
-        // Only run the heavy O(N) sync if data is more than 15 mins old (or forced)
         if (stateSnap.exists() && !force) {
             const data = stateSnap.data();
             const lastUpdate = data.lastUpdated?.toMillis() || 0;
             const elapsed = Date.now() - lastUpdate;
-            if (elapsed < 900000) { // 15 minutes chill period
-                console.log(`Leaderboard is fresh (updated ${Math.round(elapsed/1000)}s ago). Skipping Sync Engine.`);
-                return;
-            }
+            if (elapsed < 900000) return; // 15 minutes chill period - silent skip
         }
 
-        console.log("🚀 Sync-Engine: Re-aggregating all player ranks (Syncing users & results)...");
+        console.log("🚀 Sync-Engine: Re-aggregating all player ranks...");
         // Fetch users map for Premium flags AND achievement (permanent, from users table)
         const usersSnap = await getDocs(collection(db, 'users'));
         const premiumMap = {};
@@ -357,7 +357,17 @@ export async function syncGlobalLeaderboard(force = false) {
                 const existing = userMap.get(trueId);
                 existing.score = Math.max(existing.score, u.score);
                 existing.elo = Math.max(existing.elo, u.elo);
-                existing.type = u.score >= existing.score ? u.type : existing.type;
+                // 🛡️ TITLE PROTECTION: Prefer manually selected title from registered account (with @) 
+                // OR prefer the one from the higher score ONLY if both are ghost or both are registered
+                const uIsReg = u.userId.includes('@');
+                const exIsReg = existing.userId.includes('@');
+                if (uIsReg && !exIsReg) {
+                    existing.type = u.type;
+                    existing.displayName = u.displayName;
+                } else if (uIsReg === exIsReg) {
+                    if (u.score >= existing.score) existing.type = u.type;
+                }
+                
                 if (u.achievement) existing.achievement = u.achievement;
                 if (u.isPremium) existing.isPremium = u.isPremium;
                 if (u.earnedScores) {
