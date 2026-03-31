@@ -323,7 +323,8 @@ export async function syncGlobalLeaderboard(force = false) {
         }
 
         console.log("🚀 Sync-Engine: Re-aggregating all player ranks...");
-        // Fetch users map for Premium flags AND achievement (permanent        const usersSnap = await getDocs(collection(db, 'users'));
+        // Fetch users map for Premium flags AND achievement
+        const usersSnap = await getDocs(collection(db, 'users'));
         const premiumMap = {};
         const achievementMap = {};
         const earnedScoresMap = {};
