@@ -47,6 +47,37 @@ export function onUserStateChange(callback) {
     return onAuthStateChanged(auth, callback);
 }
 
+// 👑 ADMIN OVERLORD PERMISSION
+export function isAdminUser(email) {
+    return email === "crisjohn.canales@gmail.com";
+}
+
+// Admin Player List
+export async function adminFetchAllPlayers() {
+    if (!isAdminUser(auth.currentUser?.email)) throw new Error("Unauthorized");
+    const snap = await getDocs(collection(db, 'results'));
+    const players = [];
+    snap.forEach(doc => {
+        if (doc.id === '--GLOBAL_STATE--') return;
+        players.push({ id: doc.id, ...doc.data() });
+    });
+    return players;
+}
+
+// Admin Player Update
+export async function adminUpdatePlayer(targetId, updates) {
+    if (!isAdminUser(auth.currentUser?.email)) throw new Error("Unauthorized");
+    const id = targetId.includes('@') ? targetId.toLowerCase() : targetId;
+    
+    const resRef = doc(db, 'results', id);
+    await setDoc(resRef, updates, { merge: true });
+    
+    if (id.includes('@')) {
+        const userRef = doc(db, 'users', id);
+        await setDoc(userRef, updates, { merge: true });
+    }
+}
+
 export async function authenticateUser(email, password, isSignUp, displayName) {
     if (isFirebaseConfigured) {
         try {
@@ -285,6 +316,11 @@ export async function getUserProfileData(id) {
                     console.log("🔍 [TRACING CRIS] Profile Logic:", combinedData.displayName, "| Title:", combinedData.type);
                 }
 
+                if (combinedData.isBanned) {
+                    combinedData.displayName = "--- [BANNED] ---";
+                    combinedData.isBanned = true;
+                }
+
                 // Achievement from users table is PERMANENT and always wins
                 if (userData.achievement) combinedData.achievement = userData.achievement;
                 // Merge earnedScores from both tables
@@ -353,6 +389,8 @@ export async function syncGlobalLeaderboard(force = false) {
             if (doc.id === '--GLOBAL_STATE--') return; 
             
             const d = doc.data();
+            if (d.isBanned) return; // 🚫 FILTER BANNED USERS FROM RANKINGS
+            
             const uid = d.userId || doc.id;
             const resEarned = d.earnedScores || [];
             const userEarned = earnedScoresMap[uid] || [];

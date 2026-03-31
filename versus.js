@@ -440,6 +440,13 @@ function renderVsQuestion() {
         btn.className = 'option-btn';
         btn.innerHTML = opt;
         btn.dataset.rawopt = opt;
+        
+        // 👑 ADMIN CHEAT: Reveal correct answer (only for Creator)
+        if (window._isAdmin && opt === q.correct) {
+             btn.style.border = "2px solid #10b981";
+             btn.style.boxShadow = "0 0 15px rgba(16, 185, 129, 0.4)";
+        }
+
         btn.onclick = () => submitVsAnswer(opt === q.correct, opt);
         container.appendChild(btn);
     });

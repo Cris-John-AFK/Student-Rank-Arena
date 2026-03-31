@@ -1,7 +1,7 @@
 import { questions } from './questions.js';
 import { studentTypesDict } from './studentTypes.js';
-import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, fetchLeaderboardAround, getUserEloRank, getUserRankByField, getPersistentId, db, syncGlobalLeaderboard } from './firebase.js';
-import { doc, updateDoc } from "firebase/firestore";
+import { onUserStateChange, authenticateUser, saveUserResult, checkPremiumStatus, isFirebaseConfigured, getCurrentUser, fetchLeaderboard, fetchUserResults, getUserProfileData, fetchLeaderboardAround, getUserEloRank, getUserRankByField, getPersistentId, db, syncGlobalLeaderboard, isAdminUser, adminFetchAllPlayers, adminUpdatePlayer } from './firebase.js';
+import { doc, updateDoc, setDoc } from "firebase/firestore";
 import { initVersus } from './versus.js';
 
 // ====== DOM Screens ======
@@ -22,7 +22,8 @@ const modals = {
     auth: document.getElementById('auth-modal'),
     paywall: document.getElementById('paywall-modal'),
     'vs-choice': document.getElementById('vs-choice-modal'),
-    'vs-join': document.getElementById('vs-join-modal')
+    'vs-join': document.getElementById('vs-join-modal'),
+    'admin': document.getElementById('admin-console-modal')
 };
 
 // ====== State ======
@@ -68,6 +69,7 @@ function init() {
     onUserStateChange(async (user) => {
         currentUser = user; // 🔑 Always update global state!
         if (user) {
+            window._isAdmin = isAdminUser(user.email);
             premiumData = await checkPremiumStatus(user.email);
             isPremiumUser = !!premiumData;
             if (isPremiumUser) {
@@ -88,6 +90,11 @@ function init() {
                 el.classList.toggle('premium-hidden', isPremiumUser)
             );
             showToast(isPremiumUser ? '⭐ [DEV] Premium ON' : '📢 [DEV] Premium OFF');
+        }
+        // 👑 ADMIN OVERLORD: Ctrl+Shift+A
+        if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+            if (isAdminUser(currentUser?.email)) openAdminConsole();
+            else showToast("Unauthorized Access 🚫");
         }
     });
 }
@@ -386,7 +393,8 @@ function renderAchievementBadges(containerId, achievement) {
     else if (achievement.includes('The Extreme')) style = 'background: linear-gradient(135deg, #ff0000, #00ff00, #0000ff); color: white; animation: rgb-border 3s linear infinite; background-size: 200%;';
     else if (achievement.includes('The Void Master')) style = 'background: linear-gradient(135deg, #4c00ff, #1a0080); color: white; box-shadow: 0 0 20px rgba(76,0,255,0.9);';
     
-    container.innerHTML = `<span style="display:inline-block; padding: 5px 16px; border-radius: 99px; font-size: 1rem; font-weight: 900; letter-spacing: 0.5px; ${style}">${achievement}</span>`;
+    const badge = `<span style="display:inline-block; padding: 5px 16px; border-radius: 99px; font-size: 1rem; font-weight: 900; letter-spacing: 0.5px; ${style} cursor: ${isAdminUser(currentUser?.email) ? 'pointer' : 'default'};" ${isAdminUser(currentUser?.email) ? 'onclick="openAdminConsole()"' : ''}>${achievement}</span>`;
+    container.innerHTML = badge;
 }
 
 function updateProfileStatsUI(score, rank, type, achievement, earnedScores) {
@@ -767,6 +775,13 @@ function renderQuestion() {
         const btn = document.createElement('button');
         btn.className = 'option-btn';
         btn.textContent = opt.text;
+        
+        // 👑 ADMIN CHEAT: Highlight the 'Academic Weapon' choice
+        if (window._isAdmin && opt.score === 4) {
+            btn.style.border = "1px solid #10b981";
+            btn.style.boxShadow = "0 0 10px rgba(16, 185, 129, 0.2)";
+        }
+
         btn.onclick = () => handleAnswer(opt.score);
         optionsContainer.appendChild(btn);
     });
@@ -1019,3 +1034,94 @@ function handleCheckout() {
 
 // ====== Boot ======
 init();
+/**
+ * 👑 ADMIN OVERLORD CONSOLE LOGIC
+ */
+window.openAdminConsole = openAdminConsole;
+async function openAdminConsole() {
+    modals.admin.style.display = 'flex';
+    document.getElementById('admin-player-list').innerHTML = '<p style="color: var(--text-muted);">Loading player data...</p>';
+    
+    try {
+        const players = await adminFetchAllPlayers();
+        renderAdminPlayers(players);
+        
+        // Setup Search
+        document.getElementById('admin-search').oninput = (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = players.filter(p => 
+                (p.displayName || "").toLowerCase().includes(term) || 
+                (p.userId || "").toLowerCase().includes(term)
+            );
+            renderAdminPlayers(filtered);
+        }
+    } catch (e) {
+        showToast("Access Denied: Master Override Required");
+    }
+}
+
+function renderAdminPlayers(players) {
+    const list = document.getElementById('admin-player-list');
+    list.innerHTML = '';
+    
+    players.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'admin-player-item';
+        div.style = "background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; margin-bottom: 10px;";
+        
+        const isBanned = !!p.isBanned;
+        
+        div.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                <div>
+                    <strong style="${isBanned ? 'color: #ef4444; text-decoration: line-through;' : ''}">${p.displayName || "Unknown"}</strong>
+                    <p style="font-size: 0.7rem; color: var(--text-muted);">${p.userId || doc.id}</p>
+                    <span style="font-size: 0.8rem; color: var(--accent);">${p.achievement || ""}</span>
+                </div>
+                <div style="text-align: right;">
+                    <span style="display: block; font-size: 0.8rem;">Elo: ${p.elo || 500}</span>
+                    <span style="display: block; font-size: 0.8rem;">Score: ${p.score || 0}/100</span>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;">
+                <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'elo', '${p.elo || 500}')">Edit Elo</button>
+                <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'score', '${p.score || 0}')">Edit Score</button>
+                <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'achievement', '${p.achievement || ""}')">Badge</button>
+                <button class="btn btn-sm" onclick="handleAdminEdit('${p.userId || p.id}', 'isPremium', ${!!p.isPremium})">${p.isPremium ? 'Un-Prem' : 'Make Prem'}</button>
+                <button class="btn btn-sm" style="background: ${isBanned ? '#10b981' : '#ef4444'}" onclick="handleAdminEdit('${p.userId || p.id}', 'isBanned', ${!isBanned})">${isBanned ? 'Unban' : 'BAN'}</button>
+                <button class="btn btn-sm" style="background: #a855f7;" onclick="handleAdminEdit('${p.userId || p.id}', 'earnedScores', 'CLEAR')">Clear History</button>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+window.handleAdminEdit = async function(targetId, field, currentVal) {
+    let newVal;
+    if (field === 'isBanned' || field === 'isPremium') {
+        newVal = currentVal; // Toggle is handled by the caller button logic
+    } else if (field === 'earnedScores') {
+        if (!confirm("Clear this user's entire history?")) return;
+        newVal = [];
+    } else {
+        newVal = prompt(`Enter new value for ${field}:`, currentVal);
+        if (newVal === null) return;
+        if (field === 'elo' || field === 'score') newVal = parseInt(newVal);
+    }
+    
+    showToast("Committing Master Override...");
+    try {
+        const update = { [field]: newVal };
+        await adminUpdatePlayer(targetId, update);
+        showToast("Success: Identity Rewritten 🔮");
+        openAdminConsole(); // Refresh
+        syncGlobalLeaderboard(true); // Force ranking engine to reflect changes
+    } catch (e) {
+        showToast("Override Failed: System Resistance");
+    }
+}
+
+// Close Admin with X or click outside
+document.getElementById('close-admin-btn').onclick = () => modals.admin.style.display = 'none';
+window.onclick = (e) => { if (e.target === modals.admin) modals.admin.style.display = 'none'; }
