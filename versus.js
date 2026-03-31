@@ -13,12 +13,19 @@ let vsCurrentIndex = 0;
 let vsScore = 0;
 let vsOpponentScore = 0;
 let vsStatus = 'idle'; // idle, matching, lobby, playing, finished
-let timeLeft = 10; // In seconds
+let timeLeft = 8; // Reset to 8 seconds for VS mode
 let isLocalAnswered = false; // 🛡️ Prevent double-submission when keeping timer alive
 let antiHangInterval = null;
 let vsCorrectCount = 0;
 let isAdvancingRound = false; // Safety lock to prevent double-skipping/freezing
 let latestRoomData = null; // Global reference for the watchdog to avoid stale closure hanging
+let mmSearchSecs = 0;
+let mmTimerInterval = null;
+let mmHeartbeatInterval = null;
+let currentMMQueueRef = null;
+let isSoloAI = false;
+let aiDifficulty = 'medium'; // easy, medium, hard
+let aiTimer = null;
 
 const BATTLE_TOPICS = [
     { id: 9, name: "General Knowledge", icon: "🌍" },
@@ -122,6 +129,20 @@ export function initVersus() {
             (window.showToast || cheatToast)('⚠️ TAB SWITCH DETECTED! Question marked WRONG as penalty!');
         }
     });
+
+    // 🤖 SOLO AI MODE BUTTONS
+    document.getElementById('vs-solo-btn').addEventListener('click', () => {
+        const options = document.getElementById('solo-ai-options');
+        options.style.display = options.style.display === 'none' ? 'block' : 'none';
+    });
+
+    ['easy', 'medium', 'hard'].forEach(diff => {
+        document.getElementById(`ai-${diff}-btn`).addEventListener('click', () => {
+            aiDifficulty = diff;
+            document.getElementById('vs-choice-modal').classList.remove('visible');
+            startSoloAIMatch();
+        });
+    });
 }
 
 async function startRandomMatchmaking() {
@@ -130,6 +151,7 @@ async function startRandomMatchmaking() {
     showVsScreen('lobby');
     document.getElementById('lobby-status').textContent = "Searching for an opponent...";
     document.getElementById('room-code-display').style.display = 'none';
+    startMatchmakingTimer();
 
     // Reset avatars
     document.getElementById('p2-avatar').textContent = '❓';
@@ -146,9 +168,9 @@ async function startRandomMatchmaking() {
             const snap = await transaction.get(queueRef);
             let queue = snap.exists() ? snap.data().queue || [] : [];
             
-            // Flush ghosts (older than 15s)
+            // 🛡️ Flush ghosts (Increase to 60s to avoid the "20s" gap issue)
             const now = Date.now();
-            queue = queue.filter(p => (now - p.time) < 15000);
+            queue = queue.filter(p => (now - p.time) < 60000);
 
             // Snag an opponent
             const opponentIdx = queue.findIndex(p => p.id !== myPlayerId);
@@ -172,12 +194,14 @@ async function startRandomMatchmaking() {
         if (finalRoomId.startsWith('WAIT:')) {
             const parsedRoomId = finalRoomId.split(':')[1];
             createRoom('random', parsedRoomId);
+            startMatchmakingHeartbeat(queueRef);
         } else {
             // We matched! Jump into their waiting room!
             await joinRoom(finalRoomId);
         }
     } catch (e) {
         console.error("Matchmaking Queue error:", e);
+        stopMatchmakingTimer();
         alert("Arena Connection Error: Retrying connection...");
         showVsScreen('landing');
     }
@@ -324,6 +348,11 @@ function listenToRoom(roomId) {
                 if (vsStatus !== 'playing' || !latestRoomData) return;
                 checkRoundOver(latestRoomData);
             }, 3000);
+        }
+
+        // AI Sync Override: If we are in Solo AI mode, don't wait for Room Data for scores
+        if (isSoloAI && data.status === 'playing') {
+            document.getElementById('vs-opp-score').textContent = vsOpponentScore;
         }
 
         // Live Question Sync
@@ -493,10 +522,11 @@ function renderVsQuestion() {
     if (oppDot) oppDot.classList.remove('dot-ready');
 
     startVsTimer();
+    if (isSoloAI) aiThink();
 }
 
 function startVsTimer() {
-    timeLeft = 10; // Reset to 10 seconds
+    timeLeft = 8; // Reset to 8 seconds
     const bar = document.getElementById('vs-count-bar');
     const txt = document.getElementById('vs-timer-text');
     isLocalAnswered = false; // Reset local state
@@ -505,7 +535,7 @@ function startVsTimer() {
     
     vsTimerInterval = setInterval(() => {
         timeLeft -= 0.1; // Decrement by 0.1 seconds
-        const pct = (timeLeft / 10) * 100; // Calculate percentage based on 10 seconds
+        const pct = (timeLeft / 8) * 100; // Calculate percentage based on 8 seconds
         bar.style.width = `${pct}%`;
         txt.textContent = `${Math.ceil(timeLeft)}s`; // Display rounded up seconds
 
@@ -517,43 +547,144 @@ function startVsTimer() {
     }, 100); // Update every 100ms
 }
 
+// ------------------------------------------------------------
+// 🤖 SOLO AI ENGINE (v1.4.0)
+// ------------------------------------------------------------
+function startSoloAIMatch() {
+    isSoloAI = true;
+    vsStatus = 'matching';
+    showVsScreen('lobby');
+    document.getElementById('lobby-status').textContent = "Synthesizing AI Adversary...";
+    document.getElementById('p2-avatar').textContent = '🤖';
+    document.getElementById('p2-name').textContent = `AI-${aiDifficulty.toUpperCase()}`;
+    
+    // Simulate slight delay for "synthesis"
+    setTimeout(async () => {
+        isHost = true; // Solo players act as host of their own local-ish game
+        vsStatus = 'playing';
+        vsScore = 0;
+        vsOpponentScore = 0;
+        vsCurrentIndex = 0;
+        
+        // Fetch questions from API
+        const catIdx = Math.floor(Math.random() * BATTLE_TOPICS.length);
+        const catId = BATTLE_TOPICS[catIdx].id;
+        
+        document.getElementById('vs-category').textContent = BATTLE_TOPICS[catIdx].name;
+        
+        try {
+            const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${catId}&type=multiple`);
+            const json = await res.json();
+            vsQuestions = json.results.map(q => ({
+                category: q.category,
+                text: q.question,
+                correct: q.correct_answer,
+                options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5)
+            }));
+            
+            showVsScreen('quiz');
+            renderVsQuestion();
+            document.getElementById('vs-opp-name').textContent = `AI-${aiDifficulty.toUpperCase()}`;
+        } catch(e) { 
+            alert("Connection error fetching AI categories."); 
+            leaveRoom();
+        }
+    }, 1500);
+}
+
+function aiThink() {
+    if (!isSoloAI || vsStatus !== 'playing') return;
+    if (aiTimer) clearTimeout(aiTimer);
+    
+    // Difficulty Settings
+    const settings = {
+        easy: { delay: [4000, 7000], accuracy: 0.35 },
+        medium: { delay: [2500, 6000], accuracy: 0.65 },
+        hard: { delay: [1500, 4500], accuracy: 0.92 }
+    };
+    
+    const s = settings[aiDifficulty];
+    const delay = s.delay[0] + Math.random() * (s.delay[1] - s.delay[0]);
+    
+    aiTimer = setTimeout(() => {
+        if (vsStatus !== 'playing') return;
+        const correct = Math.random() < s.accuracy;
+        const timeLeftAI = timeLeft || 8;
+        let bonus = correct ? Math.floor(timeLeftAI / 5) : 0;
+        vsOpponentScore += correct ? (10 + bonus) : 0;
+        
+        // Update UI
+        document.getElementById('vs-opp-score').textContent = vsOpponentScore;
+        const oppDot = document.getElementById('vs-opp-dot');
+        if (oppDot) oppDot.classList.add('dot-ready');
+        
+        // Check if both ready in AI mode
+        if (isLocalAnswered) {
+             checkSoloRoundOver();
+        }
+    }, delay);
+}
+
+function checkSoloRoundOver() {
+    if (!isSoloAI || isAdvancingRound) return;
+    isAdvancingRound = true;
+    
+    setTimeout(() => {
+        vsCurrentIndex++;
+        if (vsCurrentIndex < 10) {
+            renderVsQuestion();
+            isAdvancingRound = false;
+        } else {
+            finishVsGame({ players: { ai: { score: vsOpponentScore } } });
+            isAdvancingRound = false;
+        }
+    }, 1500);
+}
+
 async function submitVsAnswer(isCorrect, selectedOpt = null) {
-    if (!currentRoomId || isLocalAnswered) return;
+    if ((!currentRoomId && !isSoloAI) || isLocalAnswered) return;
     isLocalAnswered = true; // Lock-out further submits for this round
     
     if (isCorrect) vsCorrectCount++;
-    let bonus = isCorrect ? Math.floor(timeLeft / 5) : 0; // max +10 bonus
+    let bonus = isCorrect ? Math.floor(timeLeft / 5) : 0; 
     vsScore += isCorrect ? (10 + bonus) : 0;
 
     const options = document.querySelectorAll('#vs-options .option-btn');
     options.forEach(b => {
         b.disabled = true;
-        // Visual feedback - bypasses encoded HTML entities safely
         const q = vsQuestions[vsCurrentIndex];
         if (b.dataset.rawopt === q.correct) {
             b.style.borderColor = 'var(--success)';
-            b.classList.add('ans-correct'); // 🔥 Add Correct Pulse
+            b.classList.add('ans-correct');
         }
         else if (b.disabled && b.dataset.rawopt === selectedOpt) {
             b.style.opacity = '0.7';
-            b.classList.add('ans-wrong'); // 💥 Add Wrong Shake
+            b.classList.add('ans-wrong');
         }
     });
 
+    if (isSoloAI) {
+        document.getElementById('vs-my-score').textContent = vsScore;
+        const myDot = document.getElementById('vs-my-dot');
+        if (myDot) myDot.classList.add('dot-ready');
+        
+        // Advance if AI already answered
+        const oppDot = document.getElementById('vs-opp-dot');
+        if (oppDot && oppDot.classList.contains('dot-ready')) {
+            checkSoloRoundOver();
+        }
+        return;
+    }
+
     try {
         const roomRef = doc(db, 'rooms', currentRoomId);
-        // Set local score too for instant UI feedback
         document.getElementById('vs-my-score').textContent = vsScore;
-        
-        // Use FieldPath to SAFELY update without breaking dot notation if email contains '.'
         await updateDoc(
             roomRef, 
             new FieldPath('players', myPlayerId, 'score'), vsScore,
             new FieldPath('players', myPlayerId, 'status'), 'answered'
         );
-    } catch(e) {
-        console.log("Submit ignored: Room likely already closed.");
-    }
+    } catch(e) { }
 }
 
 function checkRoundOver(data) {
@@ -568,7 +699,7 @@ function checkRoundOver(data) {
     if (data.lastRoundStart) {
         const startTime = data.lastRoundStart.toMillis ? data.lastRoundStart.toMillis() : Date.now();
         const elapsed = Date.now() - startTime;
-        if (elapsed > 12000) timedOut = true;
+        if (elapsed > 10000) timedOut = true;
     }
 
     // 🔥 INSTANT ADVANCEMENT: If both answered, skip the 10-second wait!
@@ -641,7 +772,11 @@ function finishVsGame(data) {
     const oppId = pIds.find(id => id !== myPlayerId);
 
     // 🔥 Update ELO (Safe because finishVsGame is only called exactly once per transition)
-    processEloUpdate(myScore, oppScore, vsCorrectCount);
+    if (isSoloAI) {
+        processSoloEloUpdate(myScore, oppScore, vsCorrectCount);
+    } else {
+        processEloUpdate(myScore, oppScore, vsCorrectCount);
+    }
 
     const title = document.getElementById('vs-result-title');
     const msg = document.getElementById('vs-result-msg');
@@ -697,10 +832,43 @@ async function processEloUpdate(myScore, oppScore, correctCount) {
     } catch(e) { console.error("Elo display error", e); }
 }
 
+async function processSoloEloUpdate(myScore, oppScore, correctCount) {
+    try {
+        const { updateEloAfterMatch } = await import('./firebase.js');
+        const won = myScore > oppScore;
+        const draw = myScore === oppScore;
+        
+        // Lower stakes for AI battle: Win +3 to +5, Draw 0, Loss -1
+        const result = await updateEloAfterMatch(getPersistentId(), won, draw, correctCount, true);
+        
+        if (result) {
+            const resultsScreen = document.getElementById('versus-result');
+            const existing = document.getElementById('elo-update-msg');
+            if (existing) existing.remove();
+            
+            const eloDiv = document.createElement('div');
+            eloDiv.id = 'elo-update-msg';
+            eloDiv.style.marginTop = '20px';
+            eloDiv.style.fontSize = '1.2rem';
+            eloDiv.style.fontWeight = '800';
+            eloDiv.style.color = '#818cf8';
+            eloDiv.innerHTML = `Solo Practice: ${result.change >= 0 ? '+' : ''}${result.change} Elo 🤖<br><small style="color:white; font-size:0.8rem">New Elo: ${result.newElo}</small>`;
+            
+            const scoresDiv = resultsScreen.querySelector('.vs-final-scores');
+            if (scoresDiv) scoresDiv.parentNode.insertBefore(eloDiv, scoresDiv.nextSibling);
+            else resultsScreen.querySelector('.glass-panel').appendChild(eloDiv);
+        }
+    } catch(e) { console.error("Solo Elo error", e); }
+}
+
 async function leaveRoom() {
     if (roomListener) roomListener();
     if (vsTimerInterval) clearInterval(vsTimerInterval);
     if (antiHangInterval) clearInterval(antiHangInterval);
+    if (mmTimerInterval) stopMatchmakingTimer();
+    if (mmHeartbeatInterval) clearInterval(mmHeartbeatInterval);
+    if (aiTimer) clearTimeout(aiTimer);
+    
     if (currentRoomId) {
         try {
             const roomRef = doc(db, 'rooms', currentRoomId);
@@ -737,7 +905,50 @@ async function leaveRoom() {
     
     vsStatus = 'idle';
     currentRoomId = null;
+    isSoloAI = false;
     showVsScreen('landing');
+}
+
+// 🕓 MATCHMAKING TIMERS (v1.4.0)
+function startMatchmakingTimer() {
+    mmSearchSecs = 0;
+    const timerEl = document.getElementById('lobby-timer');
+    const secsEl = document.getElementById('mm-secs');
+    if (timerEl) timerEl.style.display = 'block';
+    
+    if (mmTimerInterval) clearInterval(mmTimerInterval);
+    mmTimerInterval = setInterval(() => {
+        mmSearchSecs++;
+        if (secsEl) secsEl.textContent = mmSearchSecs;
+    }, 1000);
+}
+
+function stopMatchmakingTimer() {
+    clearInterval(mmTimerInterval);
+    const timerEl = document.getElementById('lobby-timer');
+    if (timerEl) timerEl.style.display = 'none';
+}
+
+function startMatchmakingHeartbeat(queueRef) {
+    if (mmHeartbeatInterval) clearInterval(mmHeartbeatInterval);
+    mmHeartbeatInterval = setInterval(async () => {
+        if (vsStatus !== 'matching' && vsStatus !== 'lobby') {
+            clearInterval(mmHeartbeatInterval);
+            return;
+        }
+        try {
+            await runTransaction(db, async (t) => {
+                const snap = await t.get(queueRef);
+                if (!snap.exists()) return;
+                let q = snap.data().queue || [];
+                const idx = q.findIndex(p => p.id === myPlayerId);
+                if (idx !== -1) {
+                    q[idx].time = Date.now(); // Refresh timestamp
+                    t.update(queueRef, { queue: q });
+                }
+            });
+        } catch(e) { console.warn("Lobby heartbeat sync pulse skipped."); }
+    }, 7000); // Pulse every 7s
 }
 
 // ============================================================
@@ -750,9 +961,9 @@ let blitzScore = 0;
 let blitzOppScore = 0;
 let blitzAnswered = false;
 let blitzGlobalInterval = null; // 60s shared countdown
-let blitzQInterval = null;      // 6s per-question auto-advance
+let blitzQInterval = null;      // 5s per-question auto-advance
 let blitzTimeLeft = 60;
-let blitzQTimeLeft = 6;
+let blitzQTimeLeft = 5; 
 let blitzListener = null;
 
 async function startBlitzMatchmaking() {
@@ -788,12 +999,16 @@ async function startBlitzMatchmaking() {
         });
 
         if (finalRoomId.startsWith('WAIT:')) {
+            startMatchmakingTimer();
             createBlitzRoom(finalRoomId.split(':')[1]);
+            const queueRef = doc(db, 'rooms', '--BLITZ-QUEUE--');
+            startMatchmakingHeartbeat(queueRef);
         } else {
             await joinBlitzRoom(finalRoomId);
         }
     } catch (e) {
         console.error('Blitz matchmaking error:', e);
+        stopMatchmakingTimer();
         alert('Blitz Arena Connection Error. Please try again!');
         showVsScreen('landing');
     }
@@ -969,14 +1184,14 @@ function renderBlitzQuestion() {
     if (md) md.classList.remove('dot-ready');
     if (od) od.classList.remove('dot-ready');
 
-    // Per-question 6s auto-advance bar
+    // Per-question 5s auto-advance bar
     if (blitzQInterval) clearInterval(blitzQInterval);
-    blitzQTimeLeft = 6;
+    blitzQTimeLeft = 5;
     const bar = document.getElementById('blitz-q-bar');
     if (bar) bar.style.width = '100%';
     blitzQInterval = setInterval(() => {
         blitzQTimeLeft -= 0.1;
-        const pct = (blitzQTimeLeft / 6) * 100;
+        const pct = (blitzQTimeLeft / 5) * 100;
         if (bar) bar.style.width = `${Math.max(0, pct)}%`;
         if (blitzQTimeLeft <= 0) {
             clearInterval(blitzQInterval);

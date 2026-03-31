@@ -244,7 +244,7 @@ export async function saveUserResult(score, studentType, rankPercentile, guestNi
     }
 }
 
-export async function updateEloAfterMatch(myId, won, draw, correctCount) {
+export async function updateEloAfterMatch(myId, won, draw, correctCount, isSolo = false) {
     if (!isFirebaseConfigured || !myId) return;
     try {
         const isEmail = myId.includes('@');
@@ -267,11 +267,13 @@ export async function updateEloAfterMatch(myId, won, draw, correctCount) {
         
         let change = 0;
         if (draw) {
-            change = 0;
+            change = isSolo ? 0 : 0;
         } else if (won) {
-            change = correctCount; // + points for how many right 
+            // Solo Win: +3 to +5 | PVP Win: +10 to +15
+            change = isSolo ? Math.min(5, Math.floor(correctCount / 2)) : correctCount; 
         } else {
-            change = -(10 - correctCount); // - points for how many wrong
+            // Solo Loss: -1 | PVP Loss: -5 to -10
+            change = isSolo ? -1 : -(10 - correctCount);
         }
 
         const newElo = Math.max(10, myElo + change);

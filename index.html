@@ -232,7 +232,7 @@
                     <span id="question-count">Question 1/25</span>
                     <span id="category-label" class="badge badge-neon">Time Habits</span>
                 </div>
-                <div class="quiz-content">
+                <div class="quiz-content no-select">
                     <h3 id="question-text">When do you start assignments?</h3>
                     <div id="options-container" class="options">
                         <!-- Options injected here -->
@@ -249,6 +249,7 @@
             <div class="glass-panel text-center">
                 <h2 class="gradient-text mb-2">⚔️ Battle Lobby</h2>
                 <div id="lobby-status" class="subtitle">Looking for opponent...</div>
+                <div id="lobby-timer" class="subtitle" style="font-size: 0.9rem; color: var(--accent); margin-top: 0.2rem; display: none;">🕓 Searching: <span id="mm-secs">0</span>s</div>
                 
                 <div class="lobby-players">
                     <div class="lobby-player p1">
@@ -607,10 +608,29 @@
                         <div class="icon">🔑</div>
                         <div class="text">
                             <strong>Join Friend</strong>
-                            <span>Enter room code</span>
+                            <span>Enter code</span>
                         </div>
                     </button>
                 </div>
+
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 0.5rem 0;">
+
+                <div id="solo-ai-options" style="display: none; animation: slideDown 0.3s ease;">
+                    <div class="subtitle mb-2" style="font-size: 0.75rem;">SELECT DIFFICULTY:</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                        <button id="ai-easy-btn" class="btn btn-sm" style="background: rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.5);">Easy (30%)</button>
+                        <button id="ai-medium-btn" class="btn btn-sm" style="background: rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.5);">Mid (60%)</button>
+                        <button id="ai-hard-btn" class="btn btn-sm" style="background: rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.5);">Hard (90%)</button>
+                    </div>
+                </div>
+
+                <button id="vs-solo-btn" class="match-option-btn w-100" style="border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.07);">
+                    <div class="icon">🤖</div>
+                    <div class="text">
+                        <strong style="color:#818cf8;">Solo Arena</strong>
+                        <span>Battle vs AI · low rewards</span>
+                    </div>
+                </button>
             </div>
         </div>
     </div>

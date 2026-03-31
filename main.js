@@ -82,6 +82,15 @@ function init() {
         updateLandingUI();
     });
 
+    // 🛡️ ANTI-CHEAT: Tab-switch detector for Assessment Quiz
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && screens.quiz.classList.contains('active')) {
+            console.warn('🚨 Assessment Anti-cheat: Tab switch detected!');
+            showToast('⚠️ CHEATING DETECTED: Question skipped with 0 points!');
+            handleAnswer(0); // Mark wrong and advance
+        }
+    });
+
     // DEV/TEST: Press Ctrl+Shift+P to toggle premium without paying
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.shiftKey && e.key === 'P') {
