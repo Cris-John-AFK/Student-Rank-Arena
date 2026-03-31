@@ -301,9 +301,10 @@ async function renderLeaderboard(tab) {
         const isVoid = entry.achievement?.includes('The Void Master');
         
         let devClass = isCreator ? 'creator-border' : isExtreme ? 'extreme-border' : isVoid ? 'void-border' : '';
-        let displayType = (entry.score !== undefined && studentTypesDict[entry.score])
+        // 🛡️ PERSONA LOCKDOWN: Leaderboard UI must respect Custom Titles first
+        let displayType = entry.type || ((entry.score !== undefined && studentTypesDict[entry.score])
             ? studentTypesDict[entry.score].type
-            : (entry.type || '—');
+            : '—');
 
         // Build achievement pill — very highlighted, style matches the border type
         let achievementPill = '';
@@ -484,9 +485,10 @@ window._openPublicProfile = async function(entry) {
         const pName = document.getElementById('public-name');
         if (pName) pName.textContent = data.displayName || 'Unknown';
 
-        const liveType = (data.score !== undefined && studentTypesDict[data.score])
+        // 🛡️ PERSONA LOCKDOWN: Public profiles must respect explicitly equipped titles FIRST
+        const liveType = data.type || data.lastType || ((data.score !== undefined && studentTypesDict[data.score])
             ? studentTypesDict[data.score].type
-            : (data.type || data.lastType || '—');
+            : '—');
         const pType = document.getElementById('public-type');
         if (pType) pType.textContent = liveType;
 
@@ -503,8 +505,8 @@ window._openPublicProfile = async function(entry) {
         const pScoreWorldRank = document.getElementById('public-score-rank');
 
         const eloValue = data.hasPlacement ? (data.elo || 500) : 'Pending';
-        // Prefer bestScore over score for most accurate display
-        const scoreValue = data.bestScore ?? data.score ?? 0;
+        // Math.max guarantees we never display an older 'bestScore' (63) over a newer or forced 'score' (69)
+        const scoreValue = Math.max(parseInt(data.score) || 0, parseInt(data.bestScore) || 0);
 
         if (pElo) pElo.textContent = eloValue;
         if (pScore) pScore.textContent = (data.hasPlacement || data.score !== undefined) ? `${scoreValue}/100` : '—';
@@ -526,8 +528,8 @@ window._openPublicProfile = async function(entry) {
 
         // Merge ALL earnedScores sources
         const earned = data.earnedScores || [];
-        const fallback = data.bestScore ?? data.score;
-        const allScores = [...new Set([...earned, fallback].filter(x => x !== undefined && x !== null))];
+        const fallback = Math.max(parseInt(data.score) || 0, parseInt(data.bestScore) || 0);
+        const allScores = [...new Set([...earned, fallback].filter(x => typeof x === 'number' && !isNaN(x)))];
         renderAchievementsSection('public-achieve-grid', 'public-achieve-bar', 'public-achieve-count', allScores);
 
         const panel = modal.querySelector('.glass-panel');
@@ -703,8 +705,13 @@ async function openProfile() {
         }
 
         const currentEarned = profile.earnedScores || [];
-        const fallbackScore = profile.bestScore || profile.score || profile.lastScore;
-        const allScores = [...new Set([...currentEarned, fallbackScore].filter(x => x !== undefined && x !== null))];
+        // Math.max correctly finds the highest absolute score among all historic data
+        const fallbackScore = Math.max(
+            parseInt(profile.score) || 0,
+            parseInt(profile.bestScore) || 0,
+            parseInt(profile.lastScore) || 0
+        );
+        const allScores = [...new Set([...currentEarned, fallbackScore].filter(x => typeof x === 'number' && !isNaN(x)))];
 
         updateProfileStatsUI(
             fallbackScore,
