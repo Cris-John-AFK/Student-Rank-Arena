@@ -376,7 +376,7 @@ export async function syncGlobalLeaderboard(force = false) {
             if (elapsed < 5000) return; // Debug: Reduce throttle to 5s to force updates
         }
 
-        console.log("🚀 [SYNCHRONIZER V1.1.0] Re-aggregating all player ranks (FORCED)...");
+        console.log("🚀 [SYNCHRONIZER V1.1.1] Re-aggregating all player ranks (FORCED)...");
         // Fetch users map for Premium flags AND achievement (permanent)
         const usersSnap = await getDocs(collection(db, 'users'));
         const premiumMap = {};

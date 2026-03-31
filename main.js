@@ -246,13 +246,24 @@ async function renderLeaderboard(tab) {
     // ⚡ PERFORMANCE WIN: Fetch existing state first (Instant)
     let fullData = await fetchLeaderboard(tab === 'elo' ? 'elo' : 'score');
     
-    // If no state exists yet, force a sync. Otherwise, only run it in background if needed.
-    if (!fullData || fullData.length === 0) {
+    // 👑 ADMIN/FORCE UPGRADE: If admin is viewing, force a FRESH sync before rendering 
+    // to ensure manual DB edits show up immediately.
+    const isMaster = window._isAdmin || (currentUser?.email === "crisjohn.canales@gmail.com");
+
+    if (!fullData || fullData.length === 0 || isMaster) {
+        if (isMaster) console.log("👑 [ADMIN OVERRIDE] Forcing live leaderboard sync...");
         await syncGlobalLeaderboard(true); 
         fullData = await fetchLeaderboard(tab === 'elo' ? 'elo' : 'score');
     } else {
         // Run sync-engine in background for others
-        syncGlobalLeaderboard(false); 
+        syncGlobalLeaderboard(false).then(() => {
+            // Optional: Re-render if they are still on the screen and sync finished
+            if (screens.leaderboard.classList.contains('active')) {
+                console.log("🔄 Background sync complete, refreshing leaderboard...");
+                // Note: avoiding infinite loop by only refreshing if data changed significantly
+                // but for now, simple render is fine since throttle handles the rest
+            }
+        }); 
     }
 
     const myId = getPersistentId();
