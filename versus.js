@@ -13,6 +13,7 @@ let vsQuestions = [];
 let vsCurrentIndex = 0;
 let vsScore = 0;
 let vsOpponentScore = 0;
+let vsMatchHistory = JSON.parse(localStorage.getItem('SR_ARENA_RECENT_QS') || "[]");
 let vsStatus = 'idle'; // idle, matching, lobby, playing, finished
 let timeLeft = 8; // Reset to 8 seconds for VS mode
 let isLocalAnswered = false; // 🛡️ Prevent double-submission when keeping timer alive
@@ -460,19 +461,32 @@ async function prepareGame(topicId) {
         const topic = BATTLE_TOPICS.find(t => t.id === topicId);
         let questions = [];
 
+        const shuffle = (arr) => arr.sort(() => Math.random() - 0.5);
+
         if (topic.type === 'local') {
             const pool = ARENA_QUESTIONS[topicId] || [];
-            questions = [...pool].sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ ...q, categoryId: topicId }));
+            // 🔥 Exclusion Filter
+            let possible = pool.filter(q => !vsMatchHistory.includes(q.text));
+            if (possible.length < 15) possible = pool; // Reset if bank exhausted
+            
+            questions = shuffle(possible).slice(0, 10).map(q => ({ ...q, categoryId: topicId }));
         } else {
             const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${topicId}&type=multiple`);
             const json = await res.json();
             questions = json.results.map(q => ({
                 text: q.question,
                 correct: q.correct_answer,
-                options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5),
+                options: shuffle([...q.incorrect_answers, q.correct_answer]),
                 categoryId: topicId
             }));
         }
+
+        // Save to global history
+        questions.forEach(q => {
+            if (!vsMatchHistory.includes(q.text)) vsMatchHistory.push(q.text);
+        });
+        if (vsMatchHistory.length > 250) vsMatchHistory = vsMatchHistory.slice(-200);
+        localStorage.setItem('SR_ARENA_RECENT_QS', JSON.stringify(vsMatchHistory));
 
         await updateDoc(doc(db, 'rooms', currentRoomId), {
             questions: questions,
@@ -793,25 +807,38 @@ async function processEloUpdate(myScore, oppScore, correctCount) {
         const result = await updateEloAfterMatch(getPersistentId(), won, draw, correctCount);
         
         if (result) {
-            const resultsScreen = document.getElementById('versus-result');
+            // 🔥 DYNAMIC RESULT SCREEN DETECTOR
+            const resultsScreen = document.querySelector('.screen.active');
+            if (!resultsScreen) return;
             
             // clear old elo div if any
-            const existing = document.getElementById('elo-update-msg');
+            const existing = resultsScreen.querySelector('#elo-update-msg');
             if (existing) existing.remove();
             
             const eloDiv = document.createElement('div');
             eloDiv.id = 'elo-update-msg';
             eloDiv.style.marginTop = '20px';
+            eloDiv.style.padding = '15px';
+            eloDiv.style.borderRadius = '12px';
+            eloDiv.style.background = 'rgba(255,255,255,0.05)';
+            eloDiv.style.border = `1px solid ${result.change >= 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`;
             eloDiv.style.fontSize = '1.4rem';
             eloDiv.style.fontWeight = '900';
             eloDiv.style.color = result.change >= 0 ? '#10b981' : '#ef4444';
-            eloDiv.innerHTML = `Elo Change: ${result.change >= 0 ? '+' : ''}${result.change} 🚀<br><small style="color:white; font-size:0.8rem">New Elo: ${result.newElo}</small>`;
+            
+            const changeStr = result.change >= 0 ? '+' : '';
+            eloDiv.innerHTML = `
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;">Elo Rank Adjusted</div>
+                <div>${changeStr}${result.change} Elo ${result.change >= 0 ? '📈' : '📉'}</div>
+                <small style="color:white; font-size:0.8rem; opacity: 0.7;">New Rating: ${result.newElo}</small>
+            `;
             
             const scoresDiv = resultsScreen.querySelector('.vs-final-scores');
             if (scoresDiv) {
                 scoresDiv.parentNode.insertBefore(eloDiv, scoresDiv.nextSibling);
             } else {
-                resultsScreen.querySelector('.glass-panel').appendChild(eloDiv);
+                const panel = resultsScreen.querySelector('.glass-panel');
+                if (panel) panel.appendChild(eloDiv);
             }
         }
     } catch(e) { console.error("Elo display error", e); }
@@ -827,21 +854,36 @@ async function processSoloEloUpdate(myScore, oppScore, correctCount) {
         const result = await updateEloAfterMatch(getPersistentId(), won, draw, correctCount, true);
         
         if (result) {
-            const resultsScreen = document.getElementById('versus-result');
-            const existing = document.getElementById('elo-update-msg');
+            const resultsScreen = document.querySelector('.screen.active');
+            if (!resultsScreen) return;
+
+            const existing = resultsScreen.querySelector('#elo-update-msg');
             if (existing) existing.remove();
             
             const eloDiv = document.createElement('div');
             eloDiv.id = 'elo-update-msg';
             eloDiv.style.marginTop = '20px';
+            eloDiv.style.padding = '12px';
+            eloDiv.style.borderRadius = '12px';
+            eloDiv.style.background = 'rgba(129, 140, 248, 0.1)';
+            eloDiv.style.border = '1px solid rgba(129, 140, 248, 0.3)';
             eloDiv.style.fontSize = '1.2rem';
             eloDiv.style.fontWeight = '800';
             eloDiv.style.color = '#818cf8';
-            eloDiv.innerHTML = `Solo Practice: ${result.change >= 0 ? '+' : ''}${result.change} Elo 🤖<br><small style="color:white; font-size:0.8rem">New Elo: ${result.newElo}</small>`;
+            
+            const changeStr = result.change >= 0 ? '+' : '';
+            eloDiv.innerHTML = `
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase;">Practice Elo Gain</div>
+                <div>${changeStr}${result.change} Elo 🤖</div>
+                <small style="color:white; font-size:0.7rem; opacity: 0.6;">Rating: ${result.newElo}</small>
+            `;
             
             const scoresDiv = resultsScreen.querySelector('.vs-final-scores');
             if (scoresDiv) scoresDiv.parentNode.insertBefore(eloDiv, scoresDiv.nextSibling);
-            else resultsScreen.querySelector('.glass-panel').appendChild(eloDiv);
+            else {
+                const panel = resultsScreen.querySelector('.glass-panel');
+                if (panel) panel.appendChild(eloDiv);
+            }
         }
     } catch(e) { console.error("Solo Elo error", e); }
 }
@@ -1101,41 +1143,55 @@ function listenToBlitzRoom(roomId) {
 async function prepareBlitzGame() {
     if (!currentRoomId) return;
     try {
-        // 🔥 BLITZ MIX: Pick 2 local categories and 3 API categories
+        // Shuffler helper
+        const shuffle = (arr) => arr.sort(() => Math.random() - 0.5);
+
+        // 🔥 BLITZ ANTI-REPEAT & MIX (Pick from whole bank)
         const localKeys = ["ph_history", "geography_ph"];
-        const apiIds = [9, 17, 18, 19];
+        const apiCategories = [9, 18, 17, 22, 11]; // Gen, Comp, Sci, Geo, Film
         
         let mixedPool = [];
         
-        // 1. Local Pool
+        // 1. Local Pool (Randomly pick 30 questions not in recent history)
         localKeys.forEach(key => {
-            const items = ARENA_QUESTIONS[key].slice(0, 5).map(q => ({ ...q, categoryId: key }));
-            mixedPool.push(...items);
+            let possible = ARENA_QUESTIONS[key].filter(q => !vsMatchHistory.includes(q.text));
+            if (possible.length < 20) possible = ARENA_QUESTIONS[key]; // Backup if exhausted
+            
+            const selected = shuffle(possible).slice(0, 20).map(q => ({ ...q, categoryId: key }));
+            mixedPool.push(...selected);
         });
 
-        // 2. Fetch from API (General)
-        const res = await fetch(`https://opentdb.com/api.php?amount=15&category=9&type=multiple`);
+        // 2. Fetch from API (Multiple categories for entropy)
+        const cat = apiCategories[Math.floor(Math.random() * apiCategories.length)];
+        const res = await fetch(`https://opentdb.com/api.php?amount=30&category=${cat}&type=multiple`);
         const json = await res.json();
-        const apiItems = json.results.map(q => ({
-            text: q.question,
-            correct: q.correct_answer,
-            options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5),
-            categoryId: 9
-        }));
-        mixedPool.push(...apiItems);
-
-        // Shuffle the whole thing for endless variety
-        const shuffled = [...mixedPool].sort(() => Math.random() - 0.5);
         
-        await updateDoc(doc(db, 'rooms', currentRoomId), {
-            questions: shuffled,
-            currentQuestionIndex: 0,
-            status: 'blitz_playing',
-            blitzStartedAt: serverTimestamp()
+        if (json.results) {
+            const apiItems = json.results.map(q => ({
+                text: q.question,
+                correct: q.correct_answer,
+                options: shuffle([...q.incorrect_answers, q.correct_answer]),
+                categoryId: "api_" + q.category
+            }));
+            mixedPool.push(...apiItems);
+        }
+
+        // 3. Shake the whole bag and save
+        mixedPool = shuffle(mixedPool);
+        
+        // Update history (keep last 150)
+        mixedPool.slice(0, 10).forEach(q => {
+            if (!vsMatchHistory.includes(q.text)) vsMatchHistory.push(q.text);
         });
-    } catch (e) {
-        console.error('Blitz prep failed', e);
-    }
+        if (vsMatchHistory.length > 200) vsMatchHistory = vsMatchHistory.slice(-150);
+        localStorage.setItem('SR_ARENA_RECENT_QS', JSON.stringify(vsMatchHistory));
+
+        await updateDoc(doc(db, 'rooms', currentRoomId), {
+            questions: mixedPool,
+            currentQuestionIndex: 0,
+            status: 'blitz_playing'
+        });
+    } catch(e) { console.error("Blitz prep failed...", e); }
 }
 
 function startBlitzGlobalClock() {
@@ -1235,20 +1291,20 @@ function finishBlitzGame(data) {
     blitzStatus = 'finished';
     clearInterval(blitzGlobalInterval);
 
-    document.getElementById('blitz-final-my-score').textContent = blitzScore;
-    document.getElementById('blitz-final-opp-score').textContent = blitzOppScore;
+    document.getElementById('blitz-final-my-score').textContent = vsScore;
+    document.getElementById('blitz-final-opp-score').textContent = vsOpponentScore;
     showVsScreen('blitz-result');
 
     const title = document.getElementById('blitz-result-title');
     const msg = document.getElementById('blitz-result-msg');
     const icon = document.getElementById('blitz-status-icon');
 
-    if (blitzScore > blitzOppScore) {
+    if (vsScore > vsOpponentScore) {
         title.textContent = 'SPEED KING! ⚡';
         title.className = 'gradient-text winner-glow';
         msg.textContent = 'You dominated the blitz!';
         icon.textContent = '👑';
-    } else if (blitzScore < blitzOppScore) {
+    } else if (vsScore < vsOpponentScore) {
         title.textContent = 'DEFEATED';
         title.className = '';
         title.style.color = '#ef4444';
@@ -1262,6 +1318,6 @@ function finishBlitzGame(data) {
     }
 
     // 1.5x ELO stake for Blitz (higher risk/reward)
-    processEloUpdate(blitzScore, blitzOppScore, Math.round(blitzScore / 15));
+    processEloUpdate(vsScore, vsOpponentScore, Math.round(vsScore / 15));
 }
 
