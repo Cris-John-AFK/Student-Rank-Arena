@@ -1089,27 +1089,22 @@ function listenToBlitzRoom(roomId) {
 }
 
 async function prepareBlitzGame() {
-    const topicIdx = Math.floor(Math.random() * BATTLE_TOPICS.length);
+    if (!currentRoomId) return;
     try {
-        // Fire fetch in parallel — lobby screen hides latency
-        const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${BATTLE_TOPICS[topicIdx].id}&type=multiple`);
-        const json = await res.json();
-        if (json.response_code !== 0) throw new Error('API error');
-        const questions = json.results.map(q => ({
-            category: q.category,
-            text: q.question,
-            correct: q.correct_answer,
-            options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5)
-        }));
+        const catIdx = Math.floor(Math.random() * BATTLE_TOPICS.length);
+        const topicId = BATTLE_TOPICS[catIdx].id;
+        const pool = ARENA_QUESTIONS[topicId] || [];
+        
+        const selected = [...pool].sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ ...q, categoryId: topicId }));
+        
         await updateDoc(doc(db, 'rooms', currentRoomId), {
-            questions,
+            questions: selected,
             currentQuestionIndex: 0,
             status: 'blitz_playing',
             blitzStartedAt: serverTimestamp()
         });
     } catch (e) {
-        console.error('Blitz prep failed, retrying...', e);
-        setTimeout(() => prepareBlitzGame(), 5000);
+        console.error('Blitz prep failed', e);
     }
 }
 
@@ -1134,7 +1129,10 @@ function renderBlitzQuestion() {
     if (!blitzQuestions.length) return;
     const q = blitzQuestions[blitzCurrentIndex];
     document.getElementById('blitz-q-count').textContent = `Q ${blitzCurrentIndex + 1} / ${blitzQuestions.length}`;
-    document.getElementById('blitz-category').textContent = q.category;
+    
+    // 🔥 Localized Category Name for Blitz
+    const topic = BATTLE_TOPICS.find(t => t.id === q.categoryId) || { name: q.category || "Blitz" };
+    document.getElementById('blitz-category').textContent = topic.name;
     document.getElementById('blitz-q-text').innerHTML = q.text;
 
     const container = document.getElementById('blitz-options');
