@@ -540,28 +540,43 @@ window._openPublicProfile = async function(entry) {
 async function openEditProfileModal() {
     if (!currentUser) return;
     const modal = document.getElementById('edit-profile-modal');
+    const myId = getPersistentId(); // Use persistentId for consistent guest/reg data access
     
     // Pre-fill name
     document.getElementById('edit-name-input').value = currentUser.displayName || currentUser.email?.split('@')[0] || '';
     
     // Load past titles
     const select = document.getElementById('edit-title-select');
-    select.innerHTML = '<option value="">Loading...</option>';
+    select.innerHTML = '<option value="">Loading history...</option>';
     
-    const results = await fetchUserResults(currentUser.email || currentUser.uid);
-    if (results.length > 0) {
-        // Collect all scores earned across history
-        const scores = [...new Set(results.flatMap(r => r.earnedScores || (r.score !== undefined ? [r.score] : [])))];
+    // Fetch live profile which includes ALL merged history from Ghost + Registered
+    const profile = await getUserProfileData(myId);
+    
+    if (profile) {
+        // Collect ALL scores earned across history (earnedScores + bestScore fallback)
+        const historyScores = profile.earnedScores || [];
+        const latestScores = [profile.bestScore, profile.score, profile.lastScore];
+        const allScores = [...new Set([...historyScores, ...latestScores].filter(x => typeof x === 'number'))];
         
         // Map scores back to their modern type names
-        const titles = scores
+        const titles = allScores
             .map(s => studentTypesDict[s]?.type)
             .filter(Boolean);
         
         const uniqueTitles = [...new Set(titles)];
-        select.innerHTML = uniqueTitles.map(t => `<option value="${t}">${t}</option>`).join('');
+
+        if (uniqueTitles.length > 0) {
+            select.innerHTML = uniqueTitles.map(t => `<option value="${t}">${t}</option>`).join('');
+        } else {
+            select.innerHTML = '<option value="">Establish a rank first</option>';
+        }
+
+        // Set current title if possible
+        const currentType = profile.type || profile.lastType || "";
+        if (currentType) select.value = currentType;
+
     } else {
-        select.innerHTML = '<option value="">No past titles yet</option>';
+        select.innerHTML = '<option value="">No history found</option>';
     }
     
     modal.classList.add('visible');
