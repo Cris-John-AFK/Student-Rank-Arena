@@ -574,7 +574,6 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
     animation: rgbBorder 3s linear infinite !important;
     background: linear-gradient(135deg, rgba(255,0,80,0.08) 0%, rgba(100,0,255,0.08) 100%) !important;
 }
-
 /* The Void Master 🌌 — Deep Violet Pulse */
 @keyframes voidPulse {
     0%, 100% { box-shadow: 0 0 10px 2px rgba(139, 0, 255, 0.45), inset 0 0 8px rgba(88,0,180,0.1); border-color: rgba(139,0,255,0.5); }
@@ -584,4 +583,133 @@ h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; }
     border: 1.5px solid #8b00ff !important;
     animation: voidPulse 3s ease-in-out infinite !important;
     background: linear-gradient(135deg, rgba(80,0,200,0.12) 0%, rgba(20,0,80,0.08) 100%) !important;
+}
+
+/* =========================================
+   📱 MOBILE RESPONSIVENESS OVERHAUL
+   ========================================= */
+@media (max-width: 600px) {
+    #app {
+        padding: 10px;
+    }
+    
+    .glass-panel {
+        padding: 1.2rem;
+        border-radius: 18px;
+    }
+
+    h1, .type-title {
+        font-size: 1.8rem;
+    }
+
+    h2 {
+        font-size: 1.4rem;
+    }
+
+    .subtitle {
+        font-size: 0.95rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .btn {
+        padding: 0.85rem 1.2rem;
+        font-size: 0.95rem;
+    }
+
+    /* Modal Scaling */
+    .modal {
+        padding: 0.5rem;
+    }
+    .modal-content {
+        max-width: 100%;
+        margin: 10px;
+    }
+
+    /* Profile Stats */
+    .profile-stats-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .stat-card {
+        padding: 1rem;
+    }
+    .stat-card .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    /* Result Screen Box Reflow */
+    .result-stats {
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    /* Leaderboard Adjustments */
+    .lb-row {
+        padding: 0.6rem 0.8rem;
+        gap: 0.6rem;
+    }
+    .lb-name {
+        font-size: 0.9rem;
+    }
+    .lb-score {
+        font-size: 0.9rem;
+    }
+    .lb-tabs {
+        flex-direction: column;
+    }
+
+    /* Arena & Versus Lobby Scaling */
+    .matchmaking-grid {
+        grid-template-columns: 1fr;
+    }
+    .lobby-players {
+        gap: 1rem;
+    }
+    .lobby-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 2rem;
+    }
+    .lobby-name {
+        width: 80px;
+        font-size: 0.85rem;
+    }
+    .vs-divider {
+        font-size: 1.2rem;
+    }
+
+    /* Versus In-Game HUD */
+    .vs-hud {
+        height: 3.2rem;
+        padding: 0 1rem;
+    }
+    .vs-timer-container {
+        width: 80px;
+        margin: 0 0.5rem;
+    }
+    .vs-score {
+        font-size: 1.2rem;
+    }
+    .vs-name {
+        font-size: 0.65rem;
+    }
+
+    /* Miscellaneous */
+    .pricing-options {
+        flex-direction: column;
+    }
+    
+    #toast-container {
+        width: 90%;
+        bottom: 15px;
+    }
+    .toast {
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 0.8rem 1rem;
+    }
+    .achieve-pill {
+        font-size: 0.6rem;
+        padding: 2px 7px;
+    }
 }
