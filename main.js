@@ -601,21 +601,37 @@ async function handleSaveProfileEdit(e) {
         const { auth } = await import('./firebase.js');
         await updateProfile(auth.currentUser, { displayName: newName });
         
-        // Update in Firestore results document - preserve existing 'achievement' field
-        if (isFirebaseConfigured && db) {
-            const { doc, updateDoc } = await import('firebase/firestore');
-            const userId = currentUser.email || currentUser.uid;
-            const docRef = doc(db, 'results', userId);
-            const updateData = { displayName: newName };
-            if (newTitle) updateData.type = newTitle;
-            await updateDoc(docRef, updateData);
+        // --- 🔥 REAL-TIME IDENTITY SYNC ---
+        // 1. Update in Firestore results document
+        const userId = currentUser.email || currentUser.uid;
+        const resRef = doc(db, 'results', userId);
+        const updateData = { displayName: newName };
+        if (newTitle) updateData.type = newTitle;
+        await updateDoc(resRef, updateData);
+
+        // 2. Update Account document (if registered) to prevent data revert
+        if (userId.includes('@')) {
+            const userRef = doc(db, 'users', userId);
+            const userUpdate = { displayName: newName };
+            if (newTitle) {
+                userUpdate.lastType = newTitle; // Sync with lastType
+                userUpdate.type = newTitle;
+            }
+            await updateDoc(userRef, userUpdate).catch(e => console.warn("User doc update skipped:", e));
         }
+
+        // 3. Force-trigger the Global Rank Engine so it updates the Leaderboard Cache
+        const { syncGlobalLeaderboard } = await import('./firebase.js');
+        syncGlobalLeaderboard(true); 
         
-        // Refresh UI
+        // 4. Instant UI Refresh
         document.getElementById('profile-name').textContent = newName;
-        updateLandingUI();
+        const profType = document.getElementById('prof-type');
+        if (profType && newTitle) profType.textContent = newTitle;
+
+        await updateLandingUI();
         modals['edit-profile'].classList.remove('visible');
-        showToast('✅ Profile updated!');
+        showToast('✅ Profile updated & rankings synced!');
     } catch (err) {
         console.error(err);
         showToast('❌ Update failed. Try again.');
