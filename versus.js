@@ -29,11 +29,12 @@ let aiDifficulty = 'medium'; // easy, medium, hard
 let aiTimer = null;
 
 const BATTLE_TOPICS = [
-    { id: "ph_history", name: "Philippine History", icon: "🇵🇭" },
-    { id: "english", name: "English Mastery", icon: "📖" },
-    { id: "math", name: "Mathematics", icon: "➕" },
-    { id: "geography_ph", name: "PH Geography", icon: "🗺️" },
-    { id: "cs", name: "Computer Science", icon: "💻" }
+    { id: "ph_history", type: "local", name: "Philippine History", icon: "🇵🇭" },
+    { id: "geography_ph", type: "local", name: "PH Geography", icon: "🗺️" },
+    { id: 18, type: "api", name: "Computer Science", icon: "💻" },
+    { id: 19, type: "api", name: "Mathematics", icon: "➕" },
+    { id: 17, type: "api", name: "Science & Nature", icon: "🔬" },
+    { id: 9, type: "api", name: "General Knowledge", icon: "🌏" }
 ];
 
 // DOM Helper
@@ -456,15 +457,25 @@ function handleSlotMachineSync(idx) {
 async function prepareGame(topicId) {
     if (!currentRoomId) return;
     try {
-        console.log("🛠️ Selecting 10 questions from local bank:", topicId);
-        
-        const pool = ARENA_QUESTIONS[topicId] || [];
-        if (pool.length < 10) throw new Error("Pool too small");
+        const topic = BATTLE_TOPICS.find(t => t.id === topicId);
+        let questions = [];
 
-        const selected = [...pool].sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ ...q, categoryId: topicId }));
+        if (topic.type === 'local') {
+            const pool = ARENA_QUESTIONS[topicId] || [];
+            questions = [...pool].sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ ...q, categoryId: topicId }));
+        } else {
+            const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${topicId}&type=multiple`);
+            const json = await res.json();
+            questions = json.results.map(q => ({
+                text: q.question,
+                correct: q.correct_answer,
+                options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5),
+                categoryId: topicId
+            }));
+        }
 
         await updateDoc(doc(db, 'rooms', currentRoomId), {
-            questions: selected,
+            questions: questions,
             currentQuestionIndex: 0,
             lastRoundStart: serverTimestamp() 
         });
@@ -1091,14 +1102,34 @@ function listenToBlitzRoom(roomId) {
 async function prepareBlitzGame() {
     if (!currentRoomId) return;
     try {
-        const catIdx = Math.floor(Math.random() * BATTLE_TOPICS.length);
-        const topicId = BATTLE_TOPICS[catIdx].id;
-        const pool = ARENA_QUESTIONS[topicId] || [];
+        // 🔥 BLITZ MIX: Pick 2 local categories and 3 API categories
+        const localKeys = ["ph_history", "geography_ph"];
+        const apiIds = [9, 17, 18, 19];
         
-        const selected = [...pool].sort(() => Math.random() - 0.5).slice(0, 10).map(q => ({ ...q, categoryId: topicId }));
+        let mixedPool = [];
+        
+        // 1. Local Pool
+        localKeys.forEach(key => {
+            const items = ARENA_QUESTIONS[key].slice(0, 5).map(q => ({ ...q, categoryId: key }));
+            mixedPool.push(...items);
+        });
+
+        // 2. Fetch from API (General)
+        const res = await fetch(`https://opentdb.com/api.php?amount=15&category=9&type=multiple`);
+        const json = await res.json();
+        const apiItems = json.results.map(q => ({
+            text: q.question,
+            correct: q.correct_answer,
+            options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5),
+            categoryId: 9
+        }));
+        mixedPool.push(...apiItems);
+
+        // Shuffle the whole thing for endless variety
+        const shuffled = [...mixedPool].sort(() => Math.random() - 0.5);
         
         await updateDoc(doc(db, 'rooms', currentRoomId), {
-            questions: selected,
+            questions: shuffled,
             currentQuestionIndex: 0,
             status: 'blitz_playing',
             blitzStartedAt: serverTimestamp()
@@ -1128,7 +1159,14 @@ function startBlitzGlobalClock() {
 function renderBlitzQuestion() {
     if (!blitzQuestions.length) return;
     const q = blitzQuestions[blitzCurrentIndex];
-    document.getElementById('blitz-q-count').textContent = `Q ${blitzCurrentIndex + 1} / ${blitzQuestions.length}`;
+    if (!q) {
+        // If we reach the end of the pool, just loop back to beginning (rare with 25+ questions)
+        blitzCurrentIndex = 0;
+        renderBlitzQuestion();
+        return;
+    }
+    // Endless mode — remove the "/ 10" cap
+    document.getElementById('blitz-q-count').textContent = `Q ${blitzCurrentIndex + 1} (Score: ${vsScore})`;
     
     // 🔥 Localized Category Name for Blitz
     const topic = BATTLE_TOPICS.find(t => t.id === q.categoryId) || { name: q.category || "Blitz" };

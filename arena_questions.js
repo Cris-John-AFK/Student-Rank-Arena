@@ -1,109 +1,89 @@
 /**
- * 🎓 ARENA QUESTION BANK (v1.5.0)
- * Locally sourced, DepEd-aligned, and Philippine-centric.
- * Replaces Western-centric API content with locally relevant academic material.
+ * 🎓 ARENA MASTER DATABASE (v1.8.5)
+ * Dedicated Local Bank for Philippine Content.
+ * Reverts other academic topics to Global API.
  */
 
 export const ARENA_QUESTIONS = {
     ph_history: [
-        // Spanish Era
-        { text: "Who was the first Spanish Governor-General of the Philippines?", correct: "Miguel Lopez de Legazpi", options: ["Ruy Lopez de Villalobos", "Miguel Lopez de Legazpi", "Ferdinand Magellan", "Jose Basco"] },
-        { text: "What is the name of the agreement that ended the Spanish-American War in 1898?", correct: "Treaty of Paris", options: ["Treaty of Versailles", "Biak-na-Bato Agreement", "Treaty of Paris", "Tordesillas Treaty"] },
-        { text: "Who served as the 'Insigne y Siempre Fiel Ciudad' (Distinguished and Ever Loyal City)?", correct: "Manila", options: ["Cebu", "Manila", "Vigan", "Intramuros"] },
-        { text: "Which religious order was the first to arrive in the Philippines?", correct: "Augustinians", options: ["Dominicans", "Jesuits", "Augustinians", "Franciscans"] },
-        { text: "Who was the Filipino priest that led the secularization movement and was martyred in 1872?", correct: "Jose Burgos", options: ["Mariano Gomez", "Jacinto Zamora", "Jose Burgos", "Pedro Pelaez"] },
-        { text: "The execution of GOMBURZA occurred in this field in 1872.", correct: "Bagumbayan", options: ["Luneta", "Bagumbayan", "Fort Santiago", "Plaza Miranda"] },
+        // PRE-COLONIAL
+        { text: "What was the early system of government in the Philippines?", correct: "Barangay", options: ["Pueblo", "Barangay", "Canton", "Empire"] },
+        { text: "What was the social class of the 'nobles' in early Tagalog society?", correct: "Maharlika", options: ["Timawa", "Maharlika", "Aliping Namamahay", "Datu"] },
+        { text: "Who was the first person to circumnavigate the globe (killed in Mactan)?", correct: "Ferdinand Magellan", options: ["Villalobos", "Magellan", "del Cano", "Legazpi"] },
+        { text: "What was the blood compact between Legazpi and Sikatuna?", correct: "Sandugo", options: ["Sandugo", "Sumpaan", "Kalyos", "Pacto de Sangre"] },
+        { text: "Who was the chief of Mactan who defeated Magellan?", correct: "Lapu-Lapu", options: ["Humabon", "Lapu-Lapu", "Sikatuna", "Dagohoy"] },
+        { text: "What script was used by ancient Filipinos for writing?", correct: "Baybayin", options: ["Alibata", "Baybayin", "Sanskrit", "Kawi"] },
+        { text: "The first Catholic Mass was held in which island?", correct: "Limasawa", options: ["Cebu", "Limasawa", "Manila", "Homonhon"] },
+        { text: "What was the religion of many Southern Filipinos before Spanish arrival?", correct: "Islam", options: ["Hinduism", "Islam", "Buddhism", "Animism"] },
+        { text: "Who was the Sultan of Maguindanao when the Spanish arrived?", correct: "Sultan Kudarat", options: ["Kudarat", "Humabon", "Sulayman", "Lakandula"] },
+        { text: "Who gave the Philippines its name?", correct: "Ruy Lopez de Villalobos", options: ["Magellan", "Villalobos", "Legazpi", "Philip II"] },
+
+        // REVOLUTIONARY ERA
+        { text: "Who was the 'Brain of the Katipunan'?", correct: "Emilio Jacinto", options: ["Mabini", "Jacinto", "Bonifacio", "Rizal"] },
+        { text: "Where was the 'Cry of Pugad Lawin' standard location?", correct: "Quezon City", options: ["Caloocan", "Quezon City", "Balintawak", "Paco"] },
+        { text: "Who founded the KKK?", correct: "Andres Bonifacio", options: ["Aguinaldo", "Bonifacio", "Jacinto", "Rizal"] },
+        { text: "Who was the 'Silence of the North'?", correct: "General Miguel Malvar", options: ["Luna", "Malvar", "Pilar", "Ola"] },
+        { text: "Who is the 'Hero of Tirad Pass'?", correct: "Gregorio del Pilar", options: ["Luna", "Pilar", "Aguinaldo", "Poblete"] },
+        { text: "Where was Jose Rizal executed?", correct: "Bagumbayan", options: ["Fort Santiago", "Bagumbayan", "Paco Park", "Dapitan"] },
+        { text: "What was the name of the ship that brought Rizal to exile?", correct: "SS Cebu", options: ["Victoria", "SS Cebu", "Isla de Panay", "Santa Maria"] },
+        { text: "Who wrote 'Mi Ultimo Adios'?", correct: "Jose Rizal", options: ["Rizal", "Bonifacio", "Palma", "Luna"] },
+        { text: "The Malolos Republic was established in which church?", correct: "Barasoain Church", options: ["Quiapo", "Manila Cathedral", "Barasoain Church", "San Sebastian"] },
+        { text: "Who was the first President of the Philippines?", correct: "Emilio Aguinaldo", options: ["Quezon", "Aguinaldo", "Roxas", "Osmeña"] },
+        { text: "Who was the last Filipino general to surrender to Americans?", correct: "Miguel Malvar", options: ["Malvar", "Sakay", "Ola", "Ricarte"] },
+        { text: "Who is the 'Mother of the Katipunan'?", correct: "Melchora Aquino", options: ["Silang", "Aquino", "Jesus", "Magbanua"] },
+        { text: "The Katipunan was discovered due to a confession to?", correct: "Father Mariano Gil", options: ["Mariano Gil", "Pedro Pelaez", "Jose Burgos", "Gomez"] },
+        { text: "What was the secret password of the Katipon member?", correct: "Anak ng Bayan", options: ["GomBurZa", "Anak ng Bayan", "Rizal", "Kalayaan"] },
+        { text: "Who is known as the 'Sublime Paralytic'?", correct: "Apolinario Mabini", options: ["Jacinto", "Mabini", "Rizal", "del Pilar"] },
+
+        // AMERICAN & JAPANESE
+        { text: "Who said 'I shall return'?", correct: "Douglas MacArthur", options: ["Wainwright", "MacArthur", "Taft", "Pershing"] },
+        { text: "What law promised PH independence after 10 years?", correct: "Tydings-McDuffie Law", options: ["Jones Law", "Tydings-McDuffie Law", "Hare-Hawes-Cutting", "Cooper Act"] },
+        { text: "The Death March started in Bataan and ended in?", correct: "Capas, Tarlac", options: ["Dau", "Capas, Tarlac", "Clark", "Manila"] },
+        { text: "Who was the first American Civil Governor?", correct: "William Howard Taft", options: ["Taft", "MacArthur", "Wood", "Murphy"] },
+        { text: "What year did Japan occupy Manila?", correct: "1942", options: ["1941", "1942", "1944", "1945"] },
+        { text: "What teachers were brought by US on SS Thomas?", correct: "Thomasites", options: ["Thomasites", "Pensionados", "Missionaries", "Corps"] },
+        { text: "Which President died in a plane crash on Mount Manunggal?", correct: "Ramon Magsaysay", options: ["Magsaysay", "Roxas", "Quirino", "Garcia"] },
+        { text: "Who was the 'Father of the National Language'?", correct: "Manuel L. Quezon", options: ["Quezon", "Osmeña", "Marcos", "Roxas"] },
+        { text: "The 1935 Constitution was signed by which US President?", correct: "Franklin D. Roosevelt", options: ["Taft", "Roosevelt", "Wilson", "Hoover"] },
+
+        // MODERN ERA
+        { text: "Who declared Martial Law in 1972?", correct: "Ferdinand Marcos Sr.", options: ["Macapagal", "Marcos Sr.", "Aquino", "Ramos"] },
+        { text: "Who was the first female president of PH?", correct: "Corazon Aquino", options: ["Arroyo", "Aquino", "Santiago", "Marcos"] },
+        { text: "The 1986 People Power occurred in which avenue?", correct: "EDSA", options: ["Roxas Blvd", "EDSA", "Ayala", "Aurora"] },
+        { text: "Who is the 'Father of Local Autonomy'?", correct: "Aquilino Pimentel Jr.", options: ["Pimentel", "Marcos", "Quezon", "Aquino"] },
+        { text: "Who was the President during the Centennial Celebration (1998)?", correct: "Joseph Estrada", options: ["Ramos", "Estrada", "Arroyo", "Aquino"] },
+        { text: "Which President shifted Independence to June 12?", correct: "Diosdado Macapagal", options: ["Macapagal", "Garcia", "Marcos", "Magsaysay"] },
+        { text: "Who is the proponent of the 'Filipino First' policy?", correct: "Carlos P. Garcia", options: ["Garcia", "Quirino", "Roxas", "Luz"] },
+        { text: "The 'K-12' education program started under?", correct: "Benigno Aquino III", options: ["Arroyo", "Aquino III", "Duterte", "Marcos Jr"] },
+        { text: "Who was the 'Idol of the Masses'?", correct: "Ramon Magsaysay", options: ["Estrada", "Magsaysay", "Marcos", "Quezon"] },
         
-        // Revolution Era
-        { text: "Where did the 'Cry of Rebellion' (Unang Sigaw) happen according to current NHCP standards?", correct: "Pugad Lawin", options: ["Balintawak", "Pugad Lawin", "Cavite", "Biak-na-Bato"] },
-        { text: "Who was known as the 'Mother of the Katipunan'?", correct: "Melchora Aquino", options: ["Gregoria de Jesus", "Melchora Aquino", "Teresa Magbanua", "Marina Dizon"] },
-        { text: "Where was the Malolos Congress held in 1898?", correct: "Barasoain Church", options: ["Quiapo Church", "Barasoain Church", "Manila Cathedral", "San Sebastian Church"] },
-        { text: "Who was the 'Hero of Tirad Pass'?", correct: "Gregorio del Pilar", options: ["Antonio Luna", "Gregorio del Pilar", "Miguel Malvar", "Vicente Lukban"] },
-        { text: "Who was the last Filipino general to surrender to the Americans?", correct: "Miguel Malvar", options: ["Macario Sakay", "Miguel Malvar", "Simeon Ola", "Artemio Ricarte"] },
-        
-        // American & Japanese
-        { text: "What was the name of the teachers brought by the Americans to the Philippines?", correct: "Thomasites", options: ["Missionaries", "Thomasites", "Pensionados", "Peace Corps"] },
-        { text: "Which Philippine President led the Commonwealth government in exile during WWII?", correct: "Manuel L. Quezon", options: ["Jose P. Laurel", "Manuel L. Quezon", "Sergio Osmeña", "Manuel Roxas"] },
-        { text: "The 'Death March' ended at this concentration camp in Tarlac.", correct: "Camp O'Donnell", options: ["Camp Aguinaldo", "Camp O'Donnell", "Fort Bonifacio", "Camp Crame"] },
-        { text: "Who was the president of the Japanese-sponsored Second Republic?", correct: "Jose P. Laurel", options: ["Jorge Vargas", "Jose P. Laurel", "Emilio Aguinaldo", "Benigno Aquino Sr."] },
-        { text: "What was the name of the Japanese military police during the occupation?", correct: "Kempeitai", options: ["Hukbalahap", "Kempeitai", "Makapili", "Sakdalista"] },
-        
-        // Modern Era
-        { text: "Who was the president who implemented the 'Filipino First Policy'?", correct: "Carlos P. Garcia", options: ["Diosdado Macapagal", "Carlos P. Garcia", "Ramon Magsaysay", "Elpidio Quirino"] },
-        { text: "Under which president was the date of Independence Day moved from July 4 to June 12?", correct: "Diosdado Macapagal", options: ["Manuel Roxas", "Diosdado Macapagal", "Ferdinand Marcos", "Ramon Magsaysay"] },
-        { text: "Which amendment to the 1973 Constitution gave the President legislative powers (Amendment No. 6)?", correct: "1976 Amendment", options: ["1976 Amendment", "1981 Amendment", "1984 Amendment", "1972 Proclamation"] },
-        { text: "Who was the primary opposition leader assassinated at the tarmac in 1983?", correct: "Benigno 'Ninoy' Aquino Jr.", options: ["Ninoy Aquino", "Jovito Salonga", "Lorenzo Tañada", "Jose Diokno"] },
-        
-        // General Ph
-        { text: "Who is the national hero of the Philippines?", correct: "Jose Rizal", options: ["Andres Bonifacio", "Emilio Aguinaldo", "Jose Rizal", "Apolinario Mabini"] },
-        { text: "On what date did the Philippines declare independence from Spain?", correct: "June 12, 1898", options: ["July 4, 1946", "June 12, 1898", "August 30, 1896", "January 2, 1899"] },
-        { text: "Who was the 'Brain of the Revolution'?", correct: "Apolinario Mabini", options: ["Jose Rizal", "Antonio Luna", "Emilio Jacinto", "Apolinario Mabini"] },
-        { text: "What was the name of the secret society founded by Andres Bonifacio?", correct: "Katipunan (KKK)", options: ["La Liga Filipina", "Katipunan (KKK)", "Hukbalahap", "Magdalo"] },
-        { text: "Who was the first President of the Philippine Republic?", correct: "Emilio Aguinaldo", options: ["Manuel Quezon", "Emilio Aguinaldo", "Jose P. Laurel", "Sergio Osmeña"] },
-        { text: "What is the oldest city in the Philippines?", correct: "Cebu City", options: ["Manila", "Vigan", "Cebu City", "Davao"] },
-        { text: "Which Philippine President is known as the 'Father of the National Language'?", correct: "Manuel L. Quezon", options: ["Manuel L. Quezon", "Diosdado Macapagal", "Ferdinand Marcos", "Ramon Magsaysay"] },
-        { text: "What ship was used by Ferdinand Magellan to reach the Philippines?", correct: "Victoria", options: ["Santa Maria", "Santiago", "Victoria", "Trinidad"] },
-        { text: "What was the previous name of the Philippines given by Ruy Lopez de Villalobos?", correct: "Las Islas Filipinas", options: ["Archipelago of St. Lazarus", "Las Islas Filipinas", "Maharlika", "Ma-yi"] },
-        { text: "Who wrote the national anthem 'Lupang Hinirang' (lyrics)?", correct: "Jose Palma", options: ["Julian Felipe", "Jose Palma", "Juan Luna", "Lope K. Santos"] }
-    ],
-    english: [
-        // Adjectives & Grammar
-        { text: "Which of the following is a demonstrative adjective?", correct: "Those", options: ["Many", "Those", "Quickly", "The"] },
-        { text: "Identify the superlative form of 'good'.", correct: "Best", options: ["Goodest", "Better", "Best", "More good"] },
-        { text: "In the sentence 'The blue whale is enormous', what kind of adjective is 'blue'?", correct: "Descriptive", options: ["Quantitative", "Descriptive", "Demonstrative", "Interrogative"] },
-        { text: "Which adjective describes the quality of being 'hard to understand'?", correct: "Abstruse", options: ["Lucid", "Abstruse", "Transparent", "Candid"] },
-        { text: "Choose the adjective that indicates 'too much pride'.", correct: "Arrogant", options: ["Humble", "Arrogant", "Meek", "Modest"] },
-        { text: "What adjective refers to a person who is 'easily discouraged'?", correct: "Pusillanimous", options: ["Resilient", "Pusillanimous", "Tenacious", "Stouthearted"] },
-        
-        // Advanced Vocabulary
-        { text: "What is the synonym of 'Enormous'?", correct: "Gigantic", options: ["Tiny", "Gigantic", "Fragile", "Swift"] },
-        { text: "Which word is an antonym for 'Benevolent'?", correct: "Malevolent", options: ["Kind", "Malevolent", "Generous", "Helpful"] },
-        { text: "Complete the sentence: If I ____ you, I would take the offer.", correct: "were", options: ["am", "was", "were", "had been"] },
-        { text: "Identify the abstract noun: 'The courage of the soldier was impressive.'", correct: "Courage", options: ["Soldier", "Impressive", "Courage", "Was"] },
-        
-        // Ph Textbook Style
-        { text: "Which word means 'to agree without protest'?", correct: "Acquiesce", options: ["Dissent", "Acquiesce", "Protest", "Rebel"] },
-        { text: "A person who is 'wise' is also described as:", correct: "Sagacious", options: ["Foolish", "Sagacious", "Naive", "Callow"] },
-        { text: "The opposite of 'Ephemeral' (short-lived) is:", correct: "Perpetual", options: ["Fleeting", "Transient", "Perpetual", "Brief"] },
-        { text: "Which of these is a 'compound sentence'?", correct: "I like coffee, but my sister likes tea.", options: ["I like coffee.", "I like coffee and tea.", "I like coffee, but my sister likes tea.", "Because I like coffee."] },
-        { text: "Identify the proper adjective: 'We love eating Italian food.'", correct: "Italian", options: ["We", "Love", "Italian", "Food"] },
-        
-        // Punctuation & Style
-        { text: "Which punctuation mark is used to join words like 'mother-in-law'?", correct: "Hyphen", options: ["Dash", "Hyphen", "Comma", "Semicolon"] },
-        { text: "What is the plural form of 'Child'?", correct: "Children", options: ["Childs", "Childrens", "Children", "Child"] },
-        { text: "Which word sounds the same but has a different meaning: 'Their' and ____?", correct: "There", options: ["They're", "Them", "There", "Their's"] },
-        { text: "What is the predicate in 'The big brown dog barked loudly'?", correct: "barked loudly", options: ["The big brown dog", "dog", "barked loudly", "loudly"] },
-        { text: "Find the error: 'Every students must bring their own book.'", correct: "students", options: ["Every", "students", "must", "bring"] }
-    ],
-    math: [
-        { text: "What is the value of Pi (π) to two decimal places?", correct: "3.14", options: ["3.12", "3.16", "3.14", "3.18"] },
-        { text: "Solve for x: 2x + 5 = 15.", correct: "5", options: ["10", "5", "7.5", "20"] },
-        { text: "What is the square root of 144?", correct: "12", options: ["14", "12", "11", "13"] },
-        { text: "What is the area of a circle with a radius of 7 (use π=22/7)?", correct: "154", options: ["44", "49", "154", "77"] },
-        { text: "What is the sum of angles in a triangle?", correct: "180°", options: ["90°", "360°", "270°", "180°"] },
-        { text: "What is the formula for the Pythagorean Theorem?", correct: "a² + b² = c²", options: ["a + b = c", "a² + b = c", "a² + b² = c²", "2a + 2b = c"] },
-        { text: "What is the prime number between 20 and 25?", correct: "23", options: ["21", "22", "23", "24"] },
-        { text: "Find the slope of a line passing through (1,2) and (3,6).", correct: "2", options: ["2", "3", "0.5", "4"] },
-        { text: "What is 15% of 200?", correct: "30", options: ["20", "25", "30", "35"] },
-        { text: "What is the value of 5! (5 factorial)?", correct: "120", options: ["60", "150", "120", "100"] }
+        // (Adding bulk to ph_history through regional events - expanding to high entropy)
+        { text: "The Dagohoy Rebellion lasted for how many years?", correct: "85 years", options: ["10 years", "50 years", "85 years", "100 years"] },
+        { text: "Who was the British general who occupied Manila in 1762?", correct: "William Draper", options: ["Draper", "Cornwallis", "Smith", "Legazpi"] },
+        { text: "Who led the first successful revolt in Ilocos?", correct: "Diego Silang", options: ["Silang", "Pule", "Dagohoy", "Bankaw"] },
+        { text: "The 'Confradia de San Jose' was led by?", correct: "Hermano Pule", options: ["Pule", "Dagohoy", "Silang", "Sumuroy"] },
+        { text: "What was the Spanish name for the Philippines before 'Las Islas Filipinas'?", correct: "Archipelago of St. Lazarus", options: ["St. Lazarus", "Ma-yi", "Maharlika", "San Carlos"] }
     ],
     geography_ph: [
-        { text: "What is the capital of the Philippines?", correct: "Manila", options: ["Quezon City", "Manila", "Cebu City", "Davao City"] },
-        { text: "Which mountain is the highest peak in the Philippines?", correct: "Mount Apo", options: ["Mount Pulag", "Mount Apo", "Mount Mayon", "Mount Pinatubo"] },
-        { text: "In which province can you find the Chocolate Hills?", correct: "Bohol", options: ["Cebu", "Bohol", "Palawan", "Leyte"] },
-        { text: "Which city is known as the 'Summer Capital of the Philippines'?", correct: "Baguio", options: ["Tagaytay", "Baguio", "Davao", "Vigan"] },
-        { text: "What is the smallest province in the Philippines in terms of land area?", correct: "Batanes", options: ["Camiguin", "Batanes", "Siquijor", "Guimaras"] },
-        { text: "Which volcano is famous for its 'perfect cone'?", correct: "Mayon Volcano", options: ["Taal Volcano", "Mayon Volcano", "Mount Kanlaon", "Mount Hibok-Hibok"] },
-        { text: "How many main islands/island groups are represented by the stars in the Philippine flag?", correct: "3", options: ["7,107", "3", "8", "1"] },
-        { text: "Which body of water is located to the west of the Philippines?", correct: "West Philippine Sea", options: ["Pacific Ocean", "Celebes Sea", "West Philippine Sea", "Sulu Sea"] },
-        { text: "Which province is known as the 'Home of the Underground River'?", correct: "Palawan", options: ["Surigao", "Mindoro", "Palawan", "Iloilo"] },
-        { text: "What is the longest river in the Philippines?", correct: "Cagayan River", options: ["Pasig River", "Cagayan River", "Agusan River", "Pampanga River"] }
-    ],
-    cs: [
-        { text: "What does HTML stand for?", correct: "HyperText Markup Language", options: ["HyperText Markup Language", "HighText Machine Language", "Hyperlink and Text Management", "Home Tool Markup Language"] },
-        { text: "In programming, which data structure uses Last-In-First-Out (LIFO)?", correct: "Stack", options: ["Queue", "Stack", "Linked List", "Tree"] },
-        { text: "What is the primary function of a CPU?", correct: "Process data and instructions", options: ["Store permanent files", "Process data and instructions", "Connect to the internet", "Render graphics"] },
-        { text: "Which of these is NOT a high-level programming language?", correct: "Assembly", options: ["Python", "Java", "Assembly", "Javascript"] },
-        { text: "What does 'RAM' stand for?", correct: "Random Access Memory", options: ["Random Access Memory", "Ready Application Module", "Rapid Access Management", "Real-time Array Memory"] }
+        { text: "What is the capital of the Philippines?", correct: "Manila", options: ["Quezon City", "Manila", "Davao", "Cebu"] },
+        { text: "Which province has the most number of islands?", correct: "Pangasinan", options: ["Tawi-Tawi", "Pangasinan", "Palawan", "Sulu"] },
+        { text: "The Chocolate Hills is located in?", correct: "Bohol", options: ["Cebu", "Bohol", "Leyte", "Samar"] },
+        { text: "What is the highest peak in PH?", correct: "Mount Apo", options: ["Pulag", "Apo", "Mayon", "Pinatubo"] },
+        { text: "Which city is the 'Summer Capital'?", correct: "Baguio", options: ["Tagaytay", "Baguio", "Davao", "Vigan"] },
+        { text: "What is the longest river in PH?", correct: "Cagayan River", options: ["Pasig", "Cagayan River", "Agusan", "Pampanga"] },
+        { text: "The Underground River is found in?", correct: "Palawan", options: ["Palawan", "Surigao", "Bohol", "Cebu"] },
+        { text: "Which volcano has a 'perfect cone'?", correct: "Mayon", options: ["Taal", "Mayon", "Hibok-Hibok", "Kanlaon"] },
+        { text: "Boracay is in which province?", correct: "Aklan", options: ["Aklan", "Antique", "Capiz", "Iloilo"] },
+        { text: "The 'Hundred Islands' is in?", correct: "Pangasinan", options: ["Zambales", "Pangasinan", "La Union", "Ilocos"] },
+        { text: "What is the northernmost province?", correct: "Batanes", options: ["Cagayan", "Batanes", "Ilocos", "Cebu"] },
+        { text: "The 'Culinary Capital of PH' is?", correct: "Pampanga", options: ["Bulacan", "Pampanga", "Iloilo", "Cebu"] },
+        { text: "Which region is known as the 'Bicol Region'?", correct: "Region V", options: ["Region IV", "Region V", "Region VI", "Region VIII"] },
+        { text: "What is the largest island in the Philippines?", correct: "Luzon", options: ["Mindanao", "Luzon", "Samar", "Leyte"] },
+        { text: "Mount Pulag is famously located in?", correct: "Benguet", options: ["Benguet", "Mountain Prov", "Ifugao", "Kalinga"] },
+        { text: "Which city is the 'Tuna Capital'?", correct: "General Santos", options: ["Davao", "General Santos", "Zamboanga", "Iloilo"] },
+        { text: "San Juanico Bridge connects Leyte and?", correct: "Samar", options: ["Cebu", "Samar", "Bohol", "Panay"] },
+        { text: "The lowest point in PH is found in?", correct: "Philippine Trench", options: ["Marianas", "Philippine Trench", "Sulu Sea", "Subic Bay"] },
+        { text: "Which province is known as the 'Best Island in the World'?", correct: "Palawan", options: ["Palawan", "Cebu", "Siargao", "Boracay"] },
+        { text: "Siargao is part of which province?", correct: "Surigao del Norte", options: ["Surigao del Norte", "Surigao del Sur", "Agusan", "Davao"] }
     ]
 };
