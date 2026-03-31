@@ -120,17 +120,17 @@ async function startRandomMatchmaking() {
                         throw new Error("Room already taken");
                     }
                     const joinerId = getPersistentId();
-                    transaction.update(roomDoc.ref, {
-                        [`players.${joinerId}`]: {
+                    transaction.update(roomDoc.ref, 
+                        new FieldPath('players', joinerId), {
                             name: auth.currentUser?.displayName || "Gladiator",
                             score: 0,
                             status: 'waiting',
                             avatar: '⚡'
                         },
-                        [`playerEmails.${joinerId}`]: joinerId,
-                        playerCount: 2,
-                        matchStatus: 'full'
-                    });
+                        new FieldPath('playerEmails', joinerId), joinerId,
+                        'playerCount', 2,
+                        'matchStatus', 'full'
+                    );
                 });
                 // Transaction succeeded — we're in!
                 joined = true;
@@ -230,17 +230,17 @@ async function joinRoom(roomId) {
     }
 
     // Initialize Joiner Data
-    await updateDoc(roomRef, {
-        [`players.${myPlayerId}`]: {
+    await updateDoc(roomRef, 
+        new FieldPath('players', myPlayerId), {
             name: auth.currentUser?.displayName || "Gladiator",
             score: 0,
             status: 'waiting',
             avatar: '⚡'
         },
-        [`playerEmails.${myPlayerId}`]: getPersistentId(),
-        playerCount: 2,
-        matchStatus: 'full' 
-    });
+        new FieldPath('playerEmails', myPlayerId), getPersistentId(),
+        'playerCount', 2,
+        'matchStatus', 'full' 
+    );
 
     document.getElementById('vs-join-modal').classList.remove('visible');
     showVsScreen('lobby');
